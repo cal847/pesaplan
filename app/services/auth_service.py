@@ -23,6 +23,7 @@ from core.exceptions import (
 )
 
 from services.email_service import EmailService
+from services.oauth_service import GoogleOAuthService
 
 import logging
 from app.config import settings
@@ -190,4 +191,63 @@ class AuthService:
         
         logger.info(f"Password reset successful: {user.email}")
 
+        return user
+    
+    @staticmethod
+    async def authenticate_google(db: Session, code: str, redirect_uri: str) -> User:
+        """
+        Authenticate user using Google OAuth
+        """
+        try:
+            tokens = await GoogleAuthService.exchange_code(code, redirect_uri)
+            
+            user_info = await GoogleAuthService.get_user+info(tokens["access_token"])
+            
+            return await AuthService._handle_oauth_user(db, user_info)
+        except Exception as e:
+            logger.error(f"Google authentication error: {e}")
+            raise OAuthException("Google", str(e))
+    
+    @staticmethod
+    def _handle_oauth_user(db: Session, user_info: OAuthUserInfo) -> User:
+        """
+        Finds existing OAuth user or creates a new one
+        """
+        # Try to find user by provider and provider_id
+        user = db.query(User).filter(
+            USer.oauth_provider == user_info.provider,
+            User.oauth_id == user_info.provider_id
+        ).first()
+        
+        if user: 
+            return user
+        
+        # Try to find user by email
+        user = get_user_by_email(db, user_info.email)
+        if user:
+            # Link OAuth account to existing users
+            user.oauth_provider = user_info.provider
+            user.oauth_id = user_info.provider_id
+            user.is_verified = True
+            db.commit()
+            db.refresh(user)
+            return user
+        
+        # Create a new user
+        user = User(
+            email=user_info.email,
+            first_name=user_info.first_name,
+            last_name=user_info.last_name,
+            phone_number="",
+            password_hash=None,
+            oauth_provider=user_info.provider,
+            oauth_id=user_info.provider_id,
+            is_verified=True
+        )
+        
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+        logger.info(f"New OAuth user created: {user.email} via {user_info.provider}")
         return user

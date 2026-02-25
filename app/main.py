@@ -1,18 +1,31 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
+    debug=settings.DEBUG,
 )
 
+# CORS  middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Session middleware for OAuth state
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="oauth_session",
+    max_age=3600,
+    same_site="lax",
+    https_only=not settings.DEBUG,
 )
 
 @app.exception_handler(Exception)
@@ -29,3 +42,6 @@ def home():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
+app.include_router(oauth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["OAuth"])

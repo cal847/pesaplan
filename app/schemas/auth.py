@@ -5,12 +5,14 @@ from datetime import datetime
 from uuid import UUID
 
 class UserBase(BaseModel):
+    """Base model for user info"""
     email: EmailStr
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
     phone_number: Optional[str] = None
     
 class UserCreate(UserBase):
+    """Extends UserBase schema for registering a user"""
     password: str = Field(..., min_length=8, max_length=128)
     
     @field_validator("password")
@@ -27,10 +29,12 @@ class UserCreate(UserBase):
         return v
     
 class UserLogin(BaseModel):
+    """Validates user info during log in"""
     email: EmailStr
     password: str
 
 class UserResponse(BaseModel):
+    """Info returned when requesting user"""
     user_id: UUID
     email: EmailStr
     full_name: str
@@ -62,10 +66,28 @@ class TokenPayload(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+    
+class OAuthCallbackParams(BaseModel):
+    """Query parameters received in OAuth callback"""
+    code: str
+    state: Optional[str] = None
+    
+class OauthUserInfo(BaseModel):
+    """Normalized user info fro OAuth providers"""
+    provider: str
+    provider_id: str
+    email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: Optional[str] = None
 
-class GoogleAuthRequest(BaseModel):
-    token: str
-
+class OAuthTokenResponse(BaseModel):
+    """Response from OAuth token exchange"""
+    access_token: str
+    refresh_token: Optional[str] = None
+    expires_in: int
+    id_token: Optional[str] = None
+    
 class PasswordResetRequest(BaseModel):
     email: str
 

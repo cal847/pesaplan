@@ -28,6 +28,10 @@ class User(Base):
     oauth_provider = Column(String, nullable=True)
     oauth_id = Column(String, nullable=True)
     
+    # Index for faster lookups
+    __table_args__ = (
+        Index('ix_users_oauth', 'oauth_provider', 'oauth_id')
+    )
     @property
     def full_name(self) -> str:
         """Gets users full name"""

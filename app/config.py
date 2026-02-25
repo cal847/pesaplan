@@ -44,8 +44,10 @@ class Settings(BaseSettings):
     # OAuth Configuration
     GOOGLE_CLIENT_ID = Optional[str] = None
     GOOGLE_CLIENT_SECRET = Optional[str] = None
-    GITHUB_CLIENT_ID = Optional[str] = None
-    GITHUB_CLIENT_ID = Optional[str] = None
+    
+    @property
+    def GOOGLE_OAUTH_ENABLED(self) -> bool:
+        return bool(self.GOOGLE_CLIENT_ID and self.GOOGLE_CLIENT_SECRET)
     
     class Config:
         # Auto detect test mode an load the correct .env file

@@ -88,3 +88,17 @@ class EmailNotVerifiedException(PesaPlaException):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Please verify your email before proceeding"
         )
+        
+class OAuthException(PesaPlanException):
+    """Base class for OAuth-related exceptions"""
+    def __init__(self, provider: str, detail: str):
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"{provider} authentication failed: {detail}",
+            error_code="OAUTH_ERROR"
+        )
+
+class GoogleAuthException(OAuthException):
+    """Raised when Google OAuth fails"""
+    def __init__(self, detail: str):
+        super().__init__("Google", detail)

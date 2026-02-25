@@ -2,11 +2,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Any
+import uuid
+from urllib.parse import urlencode
 
 from app.database import get_db
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.services.blacklist_service import blacklist_token
+from app.api.dependencies.auth import get_current_user, get_current_verified_user
+from app.models.user import User
+from app.config import settings
 
 from app.schemas.auth import(
     UserCreate,
@@ -18,8 +23,6 @@ from app.schemas.auth import(
     Token.
 )
 
-from app.api.dependencies.auth import get_current_user, get_current_verified_user
-from app.models.user import User
 from app.core.exceptions import (
     InvalidVerificationTokenException,
     EmailAlreadyVerifiedException,
@@ -100,6 +103,59 @@ async def login(
         return tokens
     except InvalidCredentialsException as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
+    
+@router.get("/google/login")
+async def google_login(request: Request):
+    """
+    Redirect to Google OAuth authorization page
+    """
+    if not settings.GOOGLE_OAUTH_ENABLED:
+        raise HTTPException(status_code=503, detail="Google OAuth not configured")
+    
+    state = str(uuid.uuid4())
+    request.session["oauth_state"] = state
+    
+    params = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": f"{settings.FRONTEND_URL}/api/v1/auth/google/callback",
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "offline",
+        "prompt": "consent"
+    }
+    
+    auth_url = f"https://accounts.google.com/o/oauth2/auth?{urlencode(params)}"
+    
+    return {"authorization_url": auth_url}
+
+@router.get("google/callback")
+async def google_callback(
+    request: Request,
+    code: str, 
+    state: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Google redirects here after user authorization
+    """
+    # Verify state
+    stored_state = request.session.get("oauth_state")
+    if not stored_state or stored_state != state:
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
+    
+    # Clear state
+    request.session.pop("oauth_state", None)
+    
+    # Build redirect URI
+    redirect_uri = http://localhost:8000/api/v1/auth/google/callback   (for local development)
+    
+    try:
+        user = await AuthService.authenticate_google(db, code, redirect_uri)
+        tokens = AuthService.create_tokens(user)
+        return tokens
+    except OAuthException as e:
+        raise HTTPException(status_code=401, detail=e.detail)
     
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
