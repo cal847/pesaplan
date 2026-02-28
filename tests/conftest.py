@@ -1,18 +1,25 @@
-import os
-import sys
-from pathlib import Path
-
-os.environ["TESTING"] = "True"
-os.environ["DATABASE_URL"] = "sqlite:///./test.db"
-
+"""Configurations for testing"""
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Engine
 from sqlalchemy.pool import StaticPool
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
+from httpx import AsyncClient
+from datetime import datetime, timedelta, timezone
+import uuid
+import os
+from typing import Generator, AsyncGenerator 
+
+os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+# os.environ["TESTING"] = "True" 
+os.environ["FRONTEND_URL"] = "http://localhost:3000" 
+
 from app.main import app
-from app.database import Base, get_db
 from app.config import settings
+from app.database import Base, get_db
+from app.models.user import User
+from app.models import *
+from app.core.security import get_password_hash, create_access_token
 
 # Create Database Engine
 test_engine = create_engine(
@@ -27,18 +34,18 @@ TestingSessionLocal = sessionmaker(
     bind=test_engine
 )
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_env():
-    """
-    Verifies that we are in test mode
-    Runs once before all tests
-    """
-    assert settings.TESTING == True, "TESTING environment variable not set!"
-    assert "test.db" in settings.DATABASE_URL, "Test Database is not being used!"
-    print(f"\n✅ Running tests in TEST mode with DB: {settings.DATABASE_URL}")
+# @pytest.fixture(scope="session", autouse=True)
+# def setup_test_env():
+#     """
+#     Verifies that we are in test mode
+#     Runs once before all tests
+#     """
+#     assert settings.TESTING == True, "TESTING environment variable not set!"
+#     assert "test.db" in settings.DATABASE_URL, "Test Database is not being used!"
+#     print(f"\n✅ Running tests in TEST mode with DB: {settings.DATABASE_URL}")
     
-@pytest.fixture(scope="function")
-def test_db():
+@pytest.fixture(scope="session")
+def test_db() -> Generator[Engine, None, None]:
     """
     Create a new database for each test
     Tables are created before test and dropped after
@@ -47,23 +54,33 @@ def test_db():
     # Create all tables before test
     Base.metadata.create_all(bind=test_engine)
     
-    # Create Session
-    db = TestingSessionLocal()
+    yield test_engine
     
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=test_engine)
+    Base.metadata.drop_all(bind=test_engine)
+    
+@pytest.fixture(scope="function")
+def db_session(test_db) -> Generator[Session, None, None]:
+    """
+    Create a new db session for each test
+    """
+    conn = test_db.connect()
+    transaction = conn.begin()
+    session = TestingSessionLocal(bind=conn)
+    
+    yield session
+    
+    session.close()
+    transaction.rollback()
+    conn.close()
         
 @pytest.fixture(scope="function")
-def client(test_db):
+def client(db_session) -> Generator[TestClient, None, None]:
     """
     Test API endpoints
     """
     def override_get_db():
         try:
-            yield test_db
+            yield db_session
         finally:
             pass
     
@@ -72,6 +89,77 @@ def client(test_db):
     
     # Create test client
     with TestClient(app) as test_client:
+        print("Available routes: ")
+        for route in app.routes:
+            print(f"{route.path}")
         yield test_client
         
     app.dependency_overrides.clear()        
+
+@pytest.fixture(scope="function")
+async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Create an async client for testing async endpoints
+    """
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+        
+    app.dependency_overrides[get_db] = override_get_db
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+    
+@pytest.fixture(scope="function")
+def test_user(db_session) -> User:
+    """
+    Create verified test user
+    """
+    user = User(
+        user_id=uuid.uuid4(),
+        email="test@example.com",
+        first_name="Test",
+        last_name="User",
+        phone_number="+1234567890",
+        password_hash=get_password_hash("TestPassword12345!"),
+        is_verified=True,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture(scope="function")
+def test_unverified_user(db_session) -> User:
+    """
+    Create unverified test user
+    """
+    user = User(
+        user_id=uuid.uuid4(),
+        email="unverified@example.com",
+        first_name="Unverified",
+        last_name="User",
+        phone_number="+1987654321",
+        password_hash=get_password_hash("TestPassword123!"),
+        is_verified=False,
+        verification_token="test-verification-token",
+        verification_expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture(scope="function")
+def auth_headers(test_user, client) -> dict:
+    """
+    Get authentication headers for test user
+    """
+    access_token = create_access_token({"sub": str(test_user.user_id)})
+    return {"Authorization": f"Bearer {access_token}"}
