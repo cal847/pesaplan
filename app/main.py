@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 
+from app.api.routes import auth
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -43,5 +45,5 @@ def home():
 def health_check():
     return {"status": "healthy"}
 
-app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
-app.include_router(oauth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["OAuth"])
+app.include_router(auth.router, prefix=f"/api/{settings.APP_VERSION}/auth", tags=["Authentication"])
+# app.include_router(oauth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["OAuth"])

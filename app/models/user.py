@@ -1,5 +1,5 @@
 """User Database Model"""
-from sqlalchemy import Column, String, Boolean, DateTime, UUID
+from sqlalchemy import Column, String, Boolean, DateTime, UUID, Index
 from sqlalchemy.sql import func
 from app.database import Base
 import uuid
@@ -18,11 +18,12 @@ class User(Base):
     reset_password_token = Column(String(255))
     reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     verification_sent_at = Column(DateTime(timezone=True), nullable=True)
-    
+    verification_expires_at = Column(DateTime(timezone=True), nullable=True)
+        
     is_verified = Column(Boolean, default=False)
-    created_at = Column(Datetime(timezone=True), server_default=func.now())
-    updated_at = Column(Datetime(timezone=True), server_default=func.now(), on_update=func.now())
-    deleted_at = Column(Datetime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
     
     #OAuth
     oauth_provider = Column(String, nullable=True)
@@ -30,7 +31,7 @@ class User(Base):
     
     # Index for faster lookups
     __table_args__ = (
-        Index('ix_users_oauth', 'oauth_provider', 'oauth_id')
+        Index('ix_users_oauth', 'oauth_provider', 'oauth_id'),
     )
     @property
     def full_name(self) -> str:

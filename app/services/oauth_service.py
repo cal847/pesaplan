@@ -33,7 +33,7 @@ class GoogleAuthService:
                 data={
                     "code": code,
                     "client_id": settings.GOOGLE_CLIENT_ID,
-                    "client_secret": settings.CLIENT_SECRET,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
                     "redirect_uri": redirect_uri,
                     "grant_type": "authorization_code"
                 }
@@ -45,7 +45,7 @@ class GoogleAuthService:
             return token_response.json()
     
     @classmethod
-    async def get_user_info(cls, access_token: str) -> OAuthUSerInfo:
+    async def get_user_info(cls, access_token: str) -> OAuthUserInfo:
         """
         Get user info from Google using access token
         """
@@ -69,6 +69,6 @@ class GoogleAuthService:
                 provider_id=user_data["sub"],
                 email=user_data["email"],
                 first_name=given_name or full_name.split()[0] if full_name else None,
-                last_name=family_name or " ".join(full_name.split()[1:]) if full_name else None,
+                last_name=family_name or " ".join(full_name.split()[1:]) if full_name and len(full_name.split()) > 1 else None,
                 full_name=full_name
             )

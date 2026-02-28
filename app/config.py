@@ -1,14 +1,14 @@
-from pydantic_settings import BaseSettings
+from typing import List, Optional
 from functools import lru_cache
-from typing import List
 import os
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """Application Configurations"""
     
     # App Settings
     APP_NAME: str = "PesaPlan"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "v1"
     DEBUG: bool = True
     TESTING: bool = False
     
@@ -42,19 +42,21 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: Optional[str] = None
     
     # OAuth Configuration
-    GOOGLE_CLIENT_ID = Optional[str] = None
-    GOOGLE_CLIENT_SECRET = Optional[str] = None
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
     
+    FRONTEND_URL: str
+    
+    # @computed_field
     @property
-    def GOOGLE_OAUTH_ENABLED(self) -> bool:
+    def google_oauth_enabled(self) -> bool:
         return bool(self.GOOGLE_CLIENT_ID and self.GOOGLE_CLIENT_SECRET)
     
-    class Config:
-        # Auto detect test mode an load the correct .env file
-        if os.getenv("TESTING", "False").lower() == "true":
-            env_file = ".env.test"
-        else:
-            env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 @lru_cache
 def get_settings():

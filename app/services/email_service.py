@@ -27,10 +27,10 @@ class EmailService:
             # Create an email address
             message = MIMEMultipart("alternative")
             message["From"] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL}>"
-            message["To"] = email_to
+            message["To"] = receiver
             message["Subject"] = subject
             
-            message.attach(MIMEText(html_content, "html"))
+            message.attach(MIMEText(content, "html"))
             
             with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
                 if settings.SMTP_TLS:
@@ -41,7 +41,7 @@ class EmailService:
             return True
         
         except Exception as e:
-            logger.info(f"Failed to send email to {email}: {e}")
+            logger.info(f"Failed to send email to {receiver}: {e}")
             return False
     
     @staticmethod
@@ -65,7 +65,7 @@ class EmailService:
         return await EmailService.send_email(
             email_to=email_to,
             subject="Verify Your Email",
-            html_content:html
+            html_content=html
         )
     
     @staticmethod

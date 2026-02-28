@@ -1,6 +1,6 @@
 """Exceptions for each error encountered"""
+from typing import Optional, Dict
 from fastapi import HTTPException, status
-from typing import Optional, Any, Dict, List
 
 class PesaPlanException(HTTPException):
     """
@@ -10,7 +10,7 @@ class PesaPlanException(HTTPException):
         self,
         status_code: int,
         detail: str,
-        error_code: str = "ERROR"
+        error_code: str = "ERROR",
         headers: Optional[Dict[str, str]] = None
     ):
         detail_with_code = f"[{error_code}] {detail}"
@@ -27,7 +27,7 @@ class InvalidCredentialsException(PesaPlanException):
             headers={"WWW-Authenticate": "Bearer"}
         )
         
-class InvalidVerificationTokenException(BudgetAppException):
+class InvalidVerificationTokenException(PesaPlanException):
     """Raised when email verification token is invalid"""
     def __init__(self):
         super().__init__(
@@ -46,7 +46,17 @@ class InvalidTokenException(PesaPlanException):
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-class InvalidResetTokenException(BudgetAppException):
+class InvalidTokenTypeException(PesaPlanException):
+    """Raised when JWT Token is invalid"""
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Token Type",
+            error_code="INVALID_TOKEN_TYPE",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+        
+class InvalidResetTokenException(PesaPlanException):
     """Raised when password reset token is invalid"""
     def __init__(self):
         super().__init__(
@@ -64,7 +74,16 @@ class TokenExpiredException(PesaPlanException):
             error_code="EXPIRED_TOKENS",
             headers={"WWW-Authenticate": "Bearer"}
         )
-        
+    
+class ResetTokenExpiredException(PesaPlanException):
+    """Raised when password reset token has expired"""
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset token has expired. Please request a new one.",
+            error_code="RESET_TOKEN_EXPIRED"
+        )
+           
 class UserNotFoundException(PesaPlanException):
     """Raised when user does not exist in database"""
     def __init__(self, user_id: Optional[int] = None, email: Optional[str] = None):
@@ -73,7 +92,7 @@ class UserNotFoundException(PesaPlanException):
         elif email:
             detail = f"User with email {user_id} not found"
         else:
-            detail = f"User not found"
+            detail = "User not found"
             
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -81,12 +100,21 @@ class UserNotFoundException(PesaPlanException):
             error_code="USER_NOT_FOUND"
         )
         
-class EmailNotVerifiedException(PesaPlaException):
+class EmailNotVerifiedException(PesaPlanException):
     """Raised when trying to access endpoint that requires email verification"""
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Please verify your email before proceeding"
+        )
+        
+class EmailAlreadyVerifiedException(PesaPlanException):
+    """Raised when a user tries to verify an already verified email"""
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email has already been verified",
+            error_code="EMAIL_ALREADY_VERIFIED"
         )
         
 class OAuthException(PesaPlanException):

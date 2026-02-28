@@ -1,26 +1,32 @@
 """Routes for authentication"""
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from sqlalchemy.orm import Session
+
+from fastapi import Request
 from typing import Any
 import uuid
 from urllib.parse import urlencode
+import logging
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.services.blacklist_service import blacklist_token
-from app.api.dependencies.auth import get_current_user, get_current_verified_user
+from app.api.dependencies.auth import get_current_user, oauth2_scheme
 from app.models.user import User
+from app.core.exceptions import OAuthException
 from app.config import settings
 
 from app.schemas.auth import(
     UserCreate,
-    UserResponse,
     LoginRequest,
+    UserResponse,
     EmailVerificationRequest,
     PasswordResetRequest,
     PasswordResetConfirm,
-    Token.
+    Token,
+    RefreshRequest,
+    LogoutRequest,
 )
 
 from app.core.exceptions import (
@@ -32,10 +38,10 @@ from app.core.exceptions import (
     UserNotFoundException,
     InvalidResetTokenException,
     ResetTokenExpiredException,
-    PasswordResetRequest,
 )
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["authentication"])
 
 @router.post(
     "/register",
@@ -44,7 +50,6 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
     )
 async def register(
     user_data: UserCreate,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
@@ -55,12 +60,12 @@ async def register(
         return {
             "message": "A verification email has been sent to your email. If already registered, please proceed to log in"
         }
-    except IntegrityError as e:
-        db.rollback()
-        logger.warning(f"Integrity error during registration (handled silently): {str(e)}")
-        return {
-            "message": "A verification email has been sent to your email. If already registered, please proceed to log in"
-        }
+    # except IntegrityError as e:
+    #     db.rollback()
+    #     logger.warning(f"Integrity error during registration (handled silently): {str(e)}")
+    #     return {
+    #         "message": "A verification email has been sent to your email. If already registered, please proceed to log in"
+    #     }
     except Exception as e:
         logger.error(f"Registration process failed: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -91,15 +96,15 @@ async def verify_email(
     response_model=Token
 )
 async def login(
-    db: Session = Depends(get_db),
-    login_data: LoginRequest
+    login_data: LoginRequest,
+    db: Session = Depends(get_db)
 ) -> Any:
     """
     Authenticates user and return access & refresh tokens
     """
     try:
         user = AuthService.authenticate_user(db, login_data.email, login_data.password)
-        tokens = AuthService.create_tokens(user)
+        tokens = AuthService.create_tokens(db, user)
         return tokens
     except InvalidCredentialsException as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
@@ -109,7 +114,7 @@ async def google_login(request: Request):
     """
     Redirect to Google OAuth authorization page
     """
-    if not settings.GOOGLE_OAUTH_ENABLED:
+    if not settings.google_oauth_enabled:
         raise HTTPException(status_code=503, detail="Google OAuth not configured")
     
     state = str(uuid.uuid4())
@@ -129,7 +134,7 @@ async def google_login(request: Request):
     
     return {"authorization_url": auth_url}
 
-@router.get("google/callback")
+@router.get("/google/callback")
 async def google_callback(
     request: Request,
     code: str, 
@@ -148,33 +153,34 @@ async def google_callback(
     request.session.pop("oauth_state", None)
     
     # Build redirect URI
-    redirect_uri = http://localhost:8000/api/v1/auth/google/callback   (for local development)
+    redirect_uri = f"{settings.FRONTEND_URL}/api/v1/auth/google/callback"
     
     try:
         user = await AuthService.authenticate_google(db, code, redirect_uri)
-        tokens = AuthService.create_tokens(user)
+        tokens = AuthService.create_tokens(db, user)
         return tokens
     except OAuthException as e:
         raise HTTPException(status_code=401, detail=e.detail)
     
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
+    refresh_request: RefreshRequest,
     db: Session = Depends(get_db),
-    refresh_token: str
 ):
     """
     Refresh access token
     """
     try:
-        tokens = AuthService.refresh_access_token(db, refresh_token)
+        tokens = AuthService.refresh_access_token(db, refresh_request.refresh_token)
         return tokens
     except (InvalidTokenException, InvalidTokenTypeException, UserNotFoundException) as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     
 @router.post("/forgot-password")
 async def forgot_password(
+    reset_request: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    reset_request: PasswordResetRequest
 ):
     """
     Request a password reset email
@@ -182,25 +188,25 @@ async def forgot_password(
     token = AuthService.request_password_reset(db, reset_request.email)
     if token:
         background_tasks.add_task(
-            EmailService.send_password_reset_email(db, reset_request.email),
+            EmailService.send_password_reset_email,
             reset_request.email,
             token
         )
-     return {"message": "If your email is registered, you will receive a password reset link."}
+    return {"message": "If your email is registered, you will receive a password reset link."}
  
- @router.post("/reset-password")
- async def reset_password(
-     db: Session = Depends(get_db),
-     reset_confirm: PasswordResetConfirm
+@router.post("/reset-password")
+async def reset_password(
+     reset_confirm: PasswordResetConfirm,
+     db: Session = Depends(get_db)
  ) -> Any:
-     try:
+    try:
         user = AuthService.reset_password(db, reset_confirm.token, reset_confirm.new_password)
         return {"message": "Password reset successfully"}
     except (InvalidResetTokenException, ResetTokenExpiredException) as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user(
+async def read_current_user(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
@@ -210,9 +216,10 @@ async def get_current_user(
 
 @router.post("/logout")
 async def logout(
-    token: str = Depends(oauth2_scheme),  # extract the current token
+    logout_request: LogoutRequest,
+    token: str  = Depends(oauth2_scheme),  # extract the current token
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    blacklist_token(db, token)
+    AuthService.logout(db, logout_request.refresh_token)
     return {"message": "Logged out successfully"}

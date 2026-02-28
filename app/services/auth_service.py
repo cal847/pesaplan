@@ -2,29 +2,31 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone, timedelta
-from models.user import User
-from schemas.auth import UserCreate
+from app.models.user import User
+from app.models.refresh_token import RefreshToken
+from app.schemas.auth import UserCreate, OAuthUserInfo
 from jose import JWTError, jwt
-from api.dependencies.auth import get_user_by_email, get_user_by_number, get_user_by_id
+from app.api.dependencies.auth import get_user_by_email, get_user_by_id
 import uuid
-
-from core.security import (
+import asyncio
+from app.core.security import (
     verify_password, get_password_hash,
-    create_access_token, create_refresh_token,
-    generate_verification_token, generate_reset_token
+    create_access_token, generate_verification_token,
+    generate_reset_token
     )
 
-from core.exceptions import (
-    UserAlreadyExistsException, InvalidVerificationTokenException,
+from app.core.exceptions import (
+    OAuthException, InvalidVerificationTokenException,
     InvalidCredentialsException, InvalidResetTokenException,
     EmailAlreadyVerifiedException, EmailNotVerifiedException,
     InvalidTokenException, InvalidTokenTypeException,
     UserNotFoundException, ResetTokenExpiredException
 )
 
-from services.email_service import EmailService
-from services.oauth_service import GoogleOAuthService
+from app.services.email_service import EmailService
+from app.services.oauth_service import GoogleAuthService
 
+from typing import Optional
 import logging
 from app.config import settings
 
@@ -45,14 +47,17 @@ class AuthService:
                 verification_token = generate_verification_token()
                 existing_user.verification_token = verification_token
                 existing_user.verification_sent_at = datetime.now(timezone.utc)
+                existing_user.verification_expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+                
                 db.commit()
                 EmailService.send_verification_email(user_data.email, verification_token)
                 logger.info(f"Resent verification email to {user_data.email}")
-                return User
+                return existing_user
                 
             return existing_user
         
         verification_token = generate_verification_token()
+        verification_expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
         hashed_password = get_password_hash(user_data.password)
         user = User(
             email=user_data.email,
@@ -62,6 +67,7 @@ class AuthService:
             phone_number=user_data.phone_number,
             verification_token=verification_token,
             verification_sent_at=datetime.now(timezone.utc),
+            verification_expires_at=verification_expires_at,
             is_verified=False
         )
         
@@ -91,6 +97,18 @@ class AuthService:
         if user.is_verified:
             raise EmailAlreadyVerifiedException()
         
+        # Ensure both datetimes are timezone-aware for comparison
+        if not user.verification_expires_at:
+            raise InvalidVerificationTokenException()
+        
+        # Convert to timezone-aware if it's naive
+        expires_at = user.verification_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+        if expires_at < datetime.now(timezone.utc):
+            raise InvalidVerificationTokenException()
+        
         user.is_verified = True
         user.verification_token = None
         db.commit()
@@ -117,17 +135,53 @@ class AuthService:
         return user
     
     @staticmethod
-    def create_tokens(user: User) -> dict:
+    def create_tokens(db: Session, user: User) -> dict:
         """
-        Generate access and refresh tokens for a user.
+        Generate access and refresh tokens for a user. Revokes older tokens
         """
-        access_token = create_access_token(data={"sub": str(user.user_id)})
-        refresh_token = create_refresh_token(data={"sub": str(user.user_id)})
+        access_token = create_access_token({"sub": str(user.user_id)})
+        refresh_token = AuthService.create_refresh_token(db, user)
+        expires_in = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        # db.add(RefreshToken(
+        #     user_id=user.user_id,
+        #     jti=jti,
+        #     expires_at=expires_at
+        # ))
+        # db.commit()
+        
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "expires_in": expires_in
         }
+        
+    @staticmethod
+    def create_refresh_token(db: Session, user: User):
+        jti = str(uuid.uuid4())
+        expires = datetime.now(timezone.utc) + timedelta(days=7)
+
+        token = jwt.encode(
+            {
+                "sub": str(user.user_id),
+                "jti": jti,
+                "type": "refresh",
+                "exp": expires
+            },
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM
+        )
+
+        db_token = RefreshToken(
+            user_id=user.user_id,
+            jti=jti,
+            expires_at=expires
+        )
+
+        db.add(db_token)
+        db.commit()
+
+        return token
     
     @staticmethod
     def refresh_access_token(db: Session, refresh_token: str) -> dict:
@@ -141,32 +195,64 @@ class AuthService:
                 algorithms=[settings.ALGORITHM]
             )
             
-            user_id = payload.get("sub")
             token_type = payload.get("type")
             
             if token_type != "refresh":
-                raise InvalidTokenTypeException("refresh", token_type)
+                raise InvalidTokenTypeException()
             
-            if not user_id:
+            try:
+                user_id = uuid.UUID(payload.get("sub"))
+            except (ValueError, TypeError):
                 raise InvalidTokenException()
             
         except JWTError:
             raise InvalidTokenException()
         
-        user = get_user_by_id(db, uuid.UUID(user_id))
-        if not user:
-            raise UserNotFoundException(user_id=user_id)
+        jti = payload.get("jti")
+        stored_token = db.query(RefreshToken).filter(
+            RefreshToken.jti == jti,
+            RefreshToken.revoked == False
+        ).first()
         
-        return AuthService.create_tokens(user)
+        if not stored_token:
+            raise InvalidTokenException()
+
+        if stored_token.expires_at:
+            # Ensure timezone-aware comparison
+            expires_at = stored_token.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            if expires_at < datetime.now(timezone.utc):
+                raise InvalidTokenException()
     
+        # Revoke old tokens
+        stored_token.revoked = True
+        db.commit()
+        
+        user = get_user_by_id(db, user_id)
+        if not user:
+            raise UserNotFoundException()
+        
+        new_access = create_access_token({"sub": str(user.user_id)})    
+        new_refresh = AuthService.create_refresh_token(db, user)
+        expires_in = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        
+        return {
+            "access_token": new_access,
+            "refresh_token": new_refresh,
+            "token_type": "bearer",
+            "expires_in": expires_in
+        }
+        
     @staticmethod
     def request_password_reset(db: Session, email: str) -> Optional[str]:
         user = get_user_by_email(db, email)
-        if not User:
+        if not user:
             return None
-        reset_token = generate_reset_token
+        reset_token = generate_reset_token()
         user.reset_password_token = reset_token
-        user.reset_token_expires_at = datetime.not(timezone.utc) _timedelta(minutes=10)
+        user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
         db.commit()
         return reset_token
     
@@ -179,13 +265,27 @@ class AuthService:
         if not user:
             raise InvalidResetTokenException()
         
-        if user.reset_token_expires_at < datetime.now(timezone.utc):
+        if not user.reset_token_expires_at:
             raise ResetTokenExpiredException()
         
+        # Ensure timezone-aware comparison
+        expires_at = user.reset_token_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+        if expires_at < datetime.now(timezone.utc):
+            raise ResetTokenExpiredException()
+    
         user.password_hash = get_password_hash(new_password)
         user.reset_password_token = None
         user.reset_token_expires_at = None
         user.updated_at = datetime.now(timezone.utc)
+        
+        
+        db.query(RefreshToken).filter(
+            RefreshToken.user_id == user.user_id
+        ).update({"revoked": True})
+
         db.commit()
         db.refresh(user)
         
@@ -201,9 +301,9 @@ class AuthService:
         try:
             tokens = await GoogleAuthService.exchange_code(code, redirect_uri)
             
-            user_info = await GoogleAuthService.get_user+info(tokens["access_token"])
+            user_info = await GoogleAuthService.get_user_info(tokens["access_token"])
             
-            return await AuthService._handle_oauth_user(db, user_info)
+            return AuthService._handle_oauth_user(db, user_info)
         except Exception as e:
             logger.error(f"Google authentication error: {e}")
             raise OAuthException("Google", str(e))
@@ -215,7 +315,7 @@ class AuthService:
         """
         # Try to find user by provider and provider_id
         user = db.query(User).filter(
-            USer.oauth_provider == user_info.provider,
+            User.oauth_provider == user_info.provider,
             User.oauth_id == user_info.provider_id
         ).first()
         
@@ -251,3 +351,23 @@ class AuthService:
         
         logger.info(f"New OAuth user created: {user.email} via {user_info.provider}")
         return user
+    
+    @staticmethod
+    def logout(db: Session, refresh_token: str):
+        try:
+            payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        except JWTError:
+            return
+        
+        if payload.get("type") != "refresh":
+            return
+        
+        jti = payload.get("jti")
+
+        token = db.query(RefreshToken).filter(
+            RefreshToken.jti == jti
+        ).first()
+
+        if token:
+            token.revoked = True
+            db.commit()
