@@ -1,6 +1,7 @@
 """Routes for authentication"""
 
 from fastapi import Request
+# from fastapi import BackgroundTasks
 from typing import Any
 import uuid
 from urllib.parse import urlencode
@@ -50,13 +51,21 @@ router = APIRouter(tags=["authentication"])
     )
 async def register(
     user_data: UserCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
     Registration endpoint
     """
     try:
-        AuthService.register_user(db, user_data)
+        await AuthService.register_user(db, user_data, background_tasks)
+        
+        # background_tasks.add_task(
+        #     EmailService.send_verification_email,
+        #     user.email,
+        #     user.verification_token
+        # )
+        
         return {
             "message": "A verification email has been sent to your email. If already registered, please proceed to log in"
         }

@@ -3,8 +3,10 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.config import settings
-from typing import List
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +14,31 @@ class EmailService:
     """
     Service class for sending emails
     """
+    _smtp_pool = None
+    
+    @classmethod
+    def get_smtp_connection(cls):
+        """Get or create a persistent SMTP connection"""
+        if cls._smtp_pool is None:
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
+            if settings.SMTP_TLS:
+                server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            cls._smtp_pool = server
+        return cls._smtp_pool
+    
+    @staticmethod
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        reraise=True
+    )
+    async def send_email_with_retry(email_to: str, subject: str, content: str) -> bool:
+        return await EmailService.send_email(email_to, subject, content)
+    
     @staticmethod
     async def send_email(
-        receiver: str,
+        email_to: str,
         subject: str,
         content: str,
     ) -> bool:
@@ -27,7 +51,7 @@ class EmailService:
             # Create an email address
             message = MIMEMultipart("alternative")
             message["From"] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL}>"
-            message["To"] = receiver
+            message["To"] = email_to
             message["Subject"] = subject
             
             message.attach(MIMEText(content, "html"))
@@ -41,7 +65,7 @@ class EmailService:
             return True
         
         except Exception as e:
-            logger.info(f"Failed to send email to {receiver}: {e}")
+            logger.info(f"Failed to send email to {email_to}: {e}")
             return False
     
     @staticmethod
@@ -49,6 +73,8 @@ class EmailService:
         """
         Send email verification link to a new user
         """
+        logger.info(f"Attempting to send email to {email_to}")
+        
         verification_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
         
         # HTML email template
@@ -62,14 +88,23 @@ class EmailService:
         <p>Happy budgeting! 🎉</p>
         """
         
-        return await EmailService.send_email(
+        result = await EmailService.send_email(
             email_to=email_to,
             subject="Verify Your Email",
-            html_content=html
+            content=html
         )
+        if result:
+            logger.info(f"Email sent to {email_to}")
+        else:
+            logger.error(f"Failed to send email to {email_to}")
+            
+        return result
     
     @staticmethod
-    async def send_password_reset_email(email_to: str, token: str) -> bool:
+    async def send_password_reset_email(
+        email_to: str,
+        token: str,
+        ) -> bool:
         """
         Send password reset link to user
         """
@@ -88,5 +123,5 @@ class EmailService:
         return await EmailService.send_email(
             email_to=email_to,
             subject="Password Reset - PesaPlan",
-            html_content=html
+            content=html
         )

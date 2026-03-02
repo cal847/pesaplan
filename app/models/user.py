@@ -10,8 +10,8 @@ class User(Base):
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True) 
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    phone_number = Column(String(20), unique=True, nullable=False, index=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    phone_number = Column(String(20), unique=False, nullable=False, index=True)
+    email = Column(String(255), unique=False, nullable=False, index=True)
     password_hash = Column(String(255), nullable=True)
     
     verification_token = Column(String(255))
