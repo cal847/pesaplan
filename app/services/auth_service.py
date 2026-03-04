@@ -56,7 +56,7 @@ class AuthService:
                 
                 db.commit()
                 background_tasks.add_task(
-                    EmailService.send_verification_email(user_data.email, verification_token),
+                    EmailService.send_verification_email,
                     user_data.email,
                     verification_token
                 )
@@ -92,7 +92,7 @@ class AuthService:
             #     logger.error("Failed to send verification email to {user_data.email}")
             
             background_tasks.add_task(
-                    EmailService.send_verification_email(user_data.email, verification_token),
+                    EmailService.send_verification_email,
                     user_data.email,
                     verification_token
                 )

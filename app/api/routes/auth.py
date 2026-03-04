@@ -1,7 +1,7 @@
 """Routes for authentication"""
 
 from fastapi import Request
-# from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks
 from typing import Any
 import uuid
 from urllib.parse import urlencode
@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
-from app.services.blacklist_service import blacklist_token
 from app.api.dependencies.auth import get_current_user, oauth2_scheme
 from app.models.user import User
 from app.core.exceptions import OAuthException
@@ -21,7 +20,6 @@ from app.config import settings
 from app.schemas.auth import(
     UserCreate,
     LoginRequest,
-    UserResponse,
     EmailVerificationRequest,
     PasswordResetRequest,
     PasswordResetConfirm,
@@ -214,14 +212,14 @@ async def reset_password(
     except (InvalidResetTokenException, ResetTokenExpiredException) as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 
-@router.get("/me", response_model=UserResponse)
-async def read_current_user(
-    current_user: User = Depends(get_current_user)
-) -> Any:
-    """
-    Gets information about the currently authenticated user
-    """
-    return current_user
+# @router.get("/me", response_model=UserResponse)
+# async def read_current_user(
+#     current_user: User = Depends(get_current_user)
+# ) -> Any:
+#     """
+#     Gets information about the currently authenticated user
+#     """
+#     return current_user
 
 @router.post("/logout")
 async def logout(

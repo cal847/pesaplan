@@ -1,11 +1,16 @@
-# tests/test_services/test_auth_service.py
+"""
+Authentication service tests.
+Tests all auth business logic: registration, email verification, login,
+token management, password reset, OAuth authentication, and logout.
+"""
+
 import pytest
 from sqlalchemy.orm import Session
 from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime, timedelta, timezone
-import uuid
 
 from app.services.auth_service import AuthService
+from app.services.email_service import EmailService
 from app.schemas.auth import UserCreate, OAuthUserInfo
 from app.models.user import User
 from app.models.refresh_token import RefreshToken
@@ -16,7 +21,6 @@ from app.core.exceptions import (
     EmailNotVerifiedException,
     InvalidTokenException,
     InvalidTokenTypeException,
-    UserNotFoundException,
     InvalidResetTokenException,
     ResetTokenExpiredException,
     OAuthException
@@ -29,7 +33,8 @@ class TestAuthService:
 
     # ===== REGISTRATION TESTS =====
     
-    def test_register_user_success(self, db_session: Session):
+    @pytest.mark.asyncio
+    async def test_register_user_success(self, db_session: Session, background_tasks: MagicMock):
         """Test successful user registration"""
         user_data = UserCreate(
             email="newuser@example.com",
@@ -39,19 +44,30 @@ class TestAuthService:
             password="TestPassword123!"
         )
         
-        with patch("app.services.email_service.EmailService.send_verification_email", new_callable=AsyncMock) as mock_email:
-            user = AuthService.register_user(db_session, user_data)
-            
-            assert user.email == user_data.email
-            assert user.first_name == user_data.first_name
-            assert user.last_name == user_data.last_name
-            assert user.phone_number == user_data.phone_number
-            assert user.is_verified is False
-            assert user.verification_token is not None
-            assert user.verification_expires_at is not None
-            mock_email.assert_called_once_with(user_data.email, user.verification_token)
+        user = await AuthService.register_user(db_session, user_data, background_tasks)
+        
+        assert user.email == user_data.email
+        assert user.first_name == user_data.first_name
+        assert user.last_name == user_data.last_name
+        assert user.phone_number == user_data.phone_number
+        assert user.is_verified is False
+        assert user.verification_token is not None
+        assert user.verification_expires_at is not None
+        
+        # Verify add_task was called with correct arguments
+        background_tasks.add_task.assert_called_once_with(
+            EmailService.send_verification_email,
+            user_data.email,
+            user.verification_token
+        )
     
-    def test_register_existing_unverified_user_resends_email(self, db_session: Session, test_unverified_user: User):
+    @pytest.mark.asyncio
+    async def test_register_existing_unverified_user_resends_email(
+        self, 
+        db_session: Session, 
+        test_unverified_user: User, 
+        background_tasks: MagicMock
+    ):
         """Test registering with existing unverified email resends verification"""
         user_data = UserCreate(
             email=test_unverified_user.email,
@@ -63,14 +79,25 @@ class TestAuthService:
         
         old_token = test_unverified_user.verification_token
         
-        with patch("app.services.email_service.EmailService.send_verification_email", new_callable=AsyncMock) as mock_email:
-            user = AuthService.register_user(db_session, user_data)
-            
-            assert user.user_id == test_unverified_user.user_id
-            assert user.verification_token != old_token  # Token was refreshed
-            mock_email.assert_called_once()
+        user = await AuthService.register_user(db_session, user_data, background_tasks)
+        
+        assert user.user_id == test_unverified_user.user_id
+        assert user.verification_token != old_token  # Token was refreshed
+        
+        # Verify add_task was called with correct arguments
+        background_tasks.add_task.assert_called_once_with(
+            EmailService.send_verification_email,
+            user_data.email,
+            user.verification_token
+        )
     
-    def test_register_existing_verified_user_returns_user(self, db_session: Session, test_user: User):
+    @pytest.mark.asyncio
+    async def test_register_existing_verified_user_returns_user(
+        self, 
+        db_session: Session, 
+        test_user: User, 
+        background_tasks: MagicMock
+    ):
         """Test registering with existing verified email returns user without email"""
         user_data = UserCreate(
             email=test_user.email,
@@ -80,11 +107,11 @@ class TestAuthService:
             password="TestPassword123!"
         )
         
-        with patch("app.services.email_service.EmailService.send_verification_email", new_callable=AsyncMock) as mock_email:
-            user = AuthService.register_user(db_session, user_data)
-            
-            assert user.user_id == test_user.user_id
-            mock_email.assert_not_called()  # No email for verified users
+        user = await AuthService.register_user(db_session, user_data, background_tasks)
+        
+        assert user.user_id == test_user.user_id
+        # Verify add_task was NOT called (no email for verified users)
+        background_tasks.add_task.assert_not_called()
     
     # ===== EMAIL VERIFICATION TESTS =====
     
@@ -188,7 +215,7 @@ class TestAuthService:
         with pytest.raises(InvalidTokenTypeException) as exc_info:
             AuthService.refresh_access_token(db_session, access_token)
         
-        # Check the error message (adjust based on your exception implementation)
+        # Check the error message
         error_detail = str(exc_info.value.detail).lower()
         assert "invalid token type" in error_detail
     
@@ -217,14 +244,14 @@ class TestAuthService:
                 "type": "refresh",
                 "exp": datetime.now(timezone.utc) - timedelta(days=1)  # Expired
             },
-            settings.SECRET_KEY,  # Use the correct secret
+            settings.SECRET_KEY,
             algorithm=settings.ALGORITHM
         )
         
         with pytest.raises(InvalidTokenException) as exc_info:
             AuthService.refresh_access_token(db_session, expired_token)
         
-        # Optional: check it's an expiration error
+        # Check it's an expiration error
         error_detail = str(exc_info.value.detail).lower()
         assert "expired" in error_detail or "invalid" in error_detail
     
@@ -288,8 +315,8 @@ class TestAuthService:
     def test_reset_password_revokes_refresh_tokens(self, db_session: Session, test_user: User):
         """Test that password reset revokes all refresh tokens"""
         # Create some refresh tokens
-        token1 = AuthService.create_refresh_token(db_session, test_user)
-        token2 = AuthService.create_refresh_token(db_session, test_user)
+        AuthService.create_refresh_token(db_session, test_user)
+        AuthService.create_refresh_token(db_session, test_user)
         
         # Request and use password reset
         reset_token = AuthService.request_password_reset(db_session, test_user.email)
