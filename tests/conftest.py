@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from httpx import AsyncClient
 from datetime import datetime, timedelta, timezone
 import uuid
+from unittest.mock import MagicMock   
 import os
 from typing import Generator, AsyncGenerator 
 
@@ -89,9 +90,9 @@ def client(db_session) -> Generator[TestClient, None, None]:
     
     # Create test client
     with TestClient(app) as test_client:
-        print("Available routes: ")
-        for route in app.routes:
-            print(f"{route.path}")
+        # print("Available routes: ")
+        # for route in app.routes:
+        #     print(f"{route.path}")
         yield test_client
         
     app.dependency_overrides.clear()        
@@ -111,7 +112,15 @@ async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
-    
+
+@pytest.fixture(scope="function")
+def background_tasks():
+    """Mock BackgroundTasks for testing"""
+    from fastapi import BackgroundTasks
+    bt = BackgroundTasks()
+    bt.add_task = MagicMock()  
+    return bt
+
 @pytest.fixture(scope="function")
 def test_user(db_session) -> User:
     """
@@ -125,6 +134,12 @@ def test_user(db_session) -> User:
         phone_number="+1234567890",
         password_hash=get_password_hash("TestPassword12345!"),
         is_verified=True,
+        notification_preferences={
+            "email_notifications": True,
+            "sms_notifications": True,
+            "budget_alerts": True,
+            "weekly_report": True
+        },
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
