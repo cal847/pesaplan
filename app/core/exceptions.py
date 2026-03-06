@@ -130,3 +130,13 @@ class GoogleAuthException(OAuthException):
     """Raised when Google OAuth fails"""
     def __init__(self, detail: str):
         super().__init__("Google", detail)
+        
+class InvalidPasswordException(PesaPlanException):
+    """Raised when the provided password is incorrect"""
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="The password you entered is incorrect",
+            error_code="INVALID_PASSWORD",
+            headers={"WWW-Authenticate": "Bearer"}
+        )

@@ -1,5 +1,5 @@
 """User Database Model"""
-from sqlalchemy import Column, String, Boolean, DateTime, UUID, Index
+from sqlalchemy import Column, String, Boolean, DateTime, UUID, Index, JSON
 from sqlalchemy.sql import func
 from app.database import Base
 import uuid
@@ -28,6 +28,14 @@ class User(Base):
     #OAuth
     oauth_provider = Column(String, nullable=True)
     oauth_id = Column(String, nullable=True)
+    
+    # Notifications
+    notification_preferences = Column(JSON, default={
+        "email_notifications": True,
+        "sms_notifications": True,
+        "budget_alerts": True,
+        "weekly_report": True,
+    })
     
     # Index for faster lookups
     __table_args__ = (
