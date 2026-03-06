@@ -2,8 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
+from app.database import engine, Base
 
 from app.api.routes import auth
+from app.api.routes import user_profile
+# Creates all tables
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -46,4 +50,4 @@ def health_check():
     return {"status": "healthy"}
 
 app.include_router(auth.router, prefix=f"/api/{settings.APP_VERSION}/auth", tags=["Authentication"])
-# app.include_router(oauth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["OAuth"])
+app.include_router(user_profile.router, prefix=f"/api/{settings.APP_VERSION}", tags=["Users"])

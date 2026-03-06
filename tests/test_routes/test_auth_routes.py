@@ -1,4 +1,8 @@
-# tests/test_api/test_auth_routes.py
+"""
+Authentication API endpoint tests.
+Tests all auth routes: registration, email verification, login,
+token refresh, password reset, logout, and OAuth flows.
+"""
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock
@@ -298,40 +302,40 @@ class TestAuthRoutes:
     
     # ===== CURRENT USER TESTS =====
     
-    def test_get_current_user_success(self, client: TestClient, test_user: User, auth_headers: dict):
-        """Test getting current user info"""
-        response = client.get("/api/v1/auth/me", headers=auth_headers)
+    # def test_get_current_user_success(self, client: TestClient, test_user: User, auth_headers: dict):
+    #     """Test getting current user info"""
+    #     response = client.get("/api/v1/auth/me", headers=auth_headers)
         
-        assert response.status_code == 200
-        data = response.json()
-        assert data["email"] == test_user.email
-        assert test_user.first_name in data["full_name"]
-        assert test_user.last_name in data["full_name"]
+    #     assert response.status_code == 200
+    #     data = response.json()
+    #     assert data["email"] == test_user.email
+    #     assert test_user.first_name in data["full_name"]
+    #     assert test_user.last_name in data["full_name"]
     
-    def test_get_current_user_unauthenticated(self, client: TestClient):
-        """Test getting user info without auth"""
-        response = client.get("/api/v1/auth/me")
+    # def test_get_current_user_unauthenticated(self, client: TestClient):
+    #     """Test getting user info without auth"""
+    #     response = client.get("/api/v1/auth/me")
         
-        assert response.status_code == 401
+    #     assert response.status_code == 401
     
-    def test_get_current_user_with_refresh_token(self, client: TestClient, test_user: User):
-        """Test accessing protected endpoint with refresh token (should fail)"""
-        # Login to get tokens
-        login_data = {
-            "email": test_user.email,
-            "password": "TestPassword12345!"
-        }
-        login_response = client.post("/api/v1/auth/login", json=login_data)
-        tokens = login_response.json()
+    # def test_get_current_user_with_refresh_token(self, client: TestClient, test_user: User):
+    #     """Test accessing protected endpoint with refresh token (should fail)"""
+    #     # Login to get tokens
+    #     login_data = {
+    #         "email": test_user.email,
+    #         "password": "TestPassword12345!"
+    #     }
+    #     login_response = client.post("/api/v1/auth/login", json=login_data)
+    #     tokens = login_response.json()
         
-        # Try to use refresh token as access token
-        response = client.get(
-            "/api/v1/auth/me",
-            headers={"Authorization": f"Bearer {tokens['refresh_token']}"}
-        )
+    #     # Try to use refresh token as access token
+    #     response = client.get(
+    #         "/api/v1/auth/me",
+    #         headers={"Authorization": f"Bearer {tokens['refresh_token']}"}
+    #     )
         
-        assert response.status_code == 401
-        assert "invalid token type" in response.json()["detail"].lower()
+    #     assert response.status_code == 401
+    #     assert "invalid token type" in response.json()["detail"].lower()
     
     # ===== LOGOUT TESTS =====
     

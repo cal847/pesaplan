@@ -18,7 +18,7 @@ class TestEmailService:
         
         with patch("smtplib.SMTP", mock_smtp):
             result = await EmailService.send_email(
-                receiver="test@example.com",
+                email_to="test@example.com",
                 subject="Test Subject",
                 content="<h1>Test Content</h1>"
             )
@@ -35,7 +35,7 @@ class TestEmailService:
         # Temporarily unset SMTP settings
         with patch.object(settings, 'SMTP_HOST', None):
             result = await EmailService.send_email(
-                receiver="test@example.com",
+                email_to="test@example.com",
                 subject="Test Subject",
                 content="<h1>Test Content</h1>"
             )
@@ -47,7 +47,7 @@ class TestEmailService:
         """Test SMTP connection error"""
         with patch("smtplib.SMTP", side_effect=Exception("Connection refused")):
             result = await EmailService.send_email(
-                receiver="test@example.com",
+                email_to="test@example.com",
                 subject="Test Subject",
                 content="<h1>Test Content</h1>"
             )
@@ -64,7 +64,7 @@ class TestEmailService:
         
         with patch("smtplib.SMTP", mock_smtp):
             result = await EmailService.send_email(
-                receiver="test@example.com",
+                email_to="test@example.com",
                 subject="Test Subject",
                 content="<h1>Test Content</h1>"
             )
@@ -89,8 +89,8 @@ class TestEmailService:
             args, kwargs = mock_send.call_args
             assert kwargs["email_to"] == email
             assert kwargs["subject"] == "Verify Your Email"
-            assert "verify-email" in kwargs["html_content"]
-            assert token in kwargs["html_content"]
+            assert "verify-email" in kwargs["content"]
+            assert token in kwargs["content"]
     
     @pytest.mark.asyncio
     async def test_send_verification_email_failure(self):
@@ -123,8 +123,8 @@ class TestEmailService:
             args, kwargs = mock_send.call_args
             assert kwargs["email_to"] == email
             assert kwargs["subject"] == "Password Reset - PesaPlan"
-            assert "reset-password" in kwargs["html_content"]
-            assert token in kwargs["html_content"]
+            assert "reset-password" in kwargs["content"]
+            assert token in kwargs["content"]
     
     @pytest.mark.asyncio
     async def test_send_password_reset_email_failure(self):
@@ -149,12 +149,12 @@ class TestEmailService:
             # Test verification email
             await EmailService.send_verification_email(email, token)
             call_args = mock_send.call_args_list[0]
-            html_content = call_args.kwargs["html_content"]
+            content = call_args.kwargs["content"]
             
             # Check verification email content
-            assert f"{settings.FRONTEND_URL}/verify-email?token={token}" in html_content
-            assert "Welcome to PesaPlan!" in html_content
-            assert "24 hours" in html_content
+            assert f"{settings.FRONTEND_URL}/verify-email?token={token}" in content
+            assert "Welcome to PesaPlan!" in content
+            assert "24 hours" in content
             
             # Reset mock
             mock_send.reset_mock()
@@ -162,9 +162,9 @@ class TestEmailService:
             # Test password reset email
             await EmailService.send_password_reset_email(email, token)
             call_args = mock_send.call_args_list[0]
-            html_content = call_args.kwargs["html_content"]
+            content = call_args.kwargs["content"]
             
             # Check password reset email content
-            assert f"{settings.FRONTEND_URL}/reset-password?token={token}" in html_content
-            assert "Password Reset Request" in html_content
-            assert "1 hour" in html_content
+            assert f"{settings.FRONTEND_URL}/reset-password?token={token}" in content
+            assert "Password Reset Request" in content
+            assert "1 hour" in content

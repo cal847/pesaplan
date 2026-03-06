@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.refresh_token import RefreshToken
 from app.schemas.auth import UserCreate, OAuthUserInfo
 from jose import JWTError, jwt
+from fastapi import BackgroundTasks
 from app.api.dependencies.auth import get_user_by_email, get_user_by_id
 import uuid
 import asyncio
@@ -37,7 +38,11 @@ class AuthService:
     Handles registration, authentication, email verification and password reset
     """
     @staticmethod
-    def register_user(db: Session, user_data: UserCreate) -> User:
+    async def register_user(
+        db: Session,
+        user_data: UserCreate,
+        background_tasks: BackgroundTasks
+        ) -> User:
         """Register a new user and send email verification"""
         existing_user = get_user_by_email(db, user_data.email)
         if existing_user:
@@ -50,7 +55,11 @@ class AuthService:
                 existing_user.verification_expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
                 
                 db.commit()
-                EmailService.send_verification_email(user_data.email, verification_token)
+                background_tasks.add_task(
+                    EmailService.send_verification_email,
+                    user_data.email,
+                    verification_token
+                )
                 logger.info(f"Resent verification email to {user_data.email}")
                 return existing_user
                 
@@ -76,7 +85,17 @@ class AuthService:
             db.commit()
             db.refresh(user)
             
-            EmailService.send_verification_email(user_data.email, verification_token)
+            # email_sent = await EmailService.send_verification_email(user_data.email, verification_token)
+            # if email_sent:
+            #     logger.info("Verification email sent successfully to {user_data.email}")
+            # else:
+            #     logger.error("Failed to send verification email to {user_data.email}")
+            
+            background_tasks.add_task(
+                    EmailService.send_verification_email,
+                    user_data.email,
+                    verification_token
+                )
             
             logger.info("User registered successfully")
             return user
@@ -84,6 +103,10 @@ class AuthService:
             db.rollback()
             logger.error(f"Database integrity error during registration: {e}")
             raise ValueError("Database error during registration")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error during registration: {e}")
+            raise ValueError("Registration failed")
         
     @staticmethod
     def verify_email(db: Session, token: str) -> User:

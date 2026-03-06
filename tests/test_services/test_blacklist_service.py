@@ -17,13 +17,13 @@ class TestBlacklistService:
         # Create a test token
         jti = str(uuid.uuid4())
         exp = datetime.now(timezone.utc) + timedelta(days=1)
-        user_id = str(uuid.uuid4())
+        user_id = uuid.uuid4()
         
         token = jwt.encode(
             {
                 "jti": jti,
                 "exp": exp,
-                "sub": user_id,
+                "sub": str(user_id),
                 "type": "refresh"
             },
             settings.SECRET_KEY,
