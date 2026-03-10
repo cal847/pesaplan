@@ -53,6 +53,7 @@ class Budget(Base):
     
     # Recurring bills
     is_bill = Column(Boolean, default=False)
+    bill_name = Column(String(255), nullable=True)
     due_date = Column(DateTime(timezone=True))
     recurrence = Column(Enum(BillRecurrence))
     status = Column(Enum(BillStatus))

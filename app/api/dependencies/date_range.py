@@ -3,6 +3,8 @@ Date Range utility for consistent period calculations
 """
 from datetime import datetime, timedelta, date, timezone
 from typing import Optional, Tuple
+from dateutil.relativedelta import relativedelta
+from app.models.budget import BudgetPeriod
 
 class DateRangeHelper:
     """
@@ -52,8 +54,6 @@ class DateRangeHelper:
         # Ensure is timezone aware
         if ref_date.tzinfo is None:
             ref_date = ref_date.replace(tzinfo=timezone.utc)
-
-        days_to_monday = ref_date.weekday()
         
         start = ref_date.replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
@@ -77,8 +77,6 @@ class DateRangeHelper:
         # Ensure is timezone aware
         if ref_date.tzinfo is None:
             ref_date = ref_date.replace(tzinfo=timezone.utc)
-
-        days_to_monday = ref_date.weekday()
         
         start = ref_date.replace(
             month=1, day=1, hour=0, minute=0, second=0, microsecond=0
@@ -90,31 +88,23 @@ class DateRangeHelper:
         return start, end
 
     @staticmethod
-    def get_period_range(period: str, reference_date: Optional[datetime] = None) -> tuple:
+    def get_period_range(period: BudgetPeriod, ref_date: Optional[datetime] = None) -> tuple:
         """
-        Get date range for any budget period.
-        
-        Args:
-            period: One of 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom'
-            reference_date: Reference date (defaults to now)
-        
-        Returns:
-            Tuple of (start_date, end_date)
-        """
-        if reference_date is None:
-            reference_date = datetime.now(timezone.utc)
+        Get date range for any budget period."""
+        if ref_date is None:
+            ref_date = datetime.now(timezone.utc)
         
         if period == 'daily':
-            return DateRangeHelper.get_today_range(reference_date)
+            return DateRangeHelper.get_today_range(ref_date)
         elif period == 'weekly':
-            return DateRangeHelper.get_week_range(reference_date)
+            return DateRangeHelper.get_week_range(ref_date)
         elif period == 'monthly':
-            return DateRangeHelper.get_month_range(reference_date)
+            return DateRangeHelper.get_month_range(ref_date)
         elif period == 'quarterly':
             # Quarter: Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec
-            quarter = (reference_date.month - 1) // 3
+            quarter = (ref_date.month - 1) // 3
             start_month = quarter * 3 + 1
-            start = reference_date.replace(month=start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+            start = ref_date.replace(month=start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
             
             if start_month + 2 > 12:
                 end_month = (start_month + 2) % 12
@@ -123,11 +113,13 @@ class DateRangeHelper:
                 end_month = start_month + 2
                 end_year = start.year
             
-            next_month = datetime(end_year, end_month, 1, tzinfo=reference_date.tzinfo) + relativedelta(months=1)
+            next_month = datetime(end_year, end_month, 1, tzinfo=ref_date.tzinfo) + relativedelta(months=1)
             end = next_month - timedelta(microseconds=1)
             return start, end
         elif period == 'yearly':
-            return DateRangeHelper.get_year_range(reference_date)
+            return DateRangeHelper.get_year_range(ref_date)
+        elif period == BudgetPeriod.CUSTOM:
+            raise ValueError("Cannot auto-compute dates for CUSTOM period — provide explicit start/end dates")
         else:
             raise ValueError(f"Unsupported period: {period}")
             
