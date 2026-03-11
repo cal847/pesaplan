@@ -4,27 +4,26 @@ Handles all budget-related business logic including CRUD, progress calculation,
 bill cycle management, and alerts.
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
-from datetime import datetime, timezone
+from sqlalchemy import func
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
 from decimal import Decimal
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 import logging
 
-from app.models.budget import Budget, BudgetPeriod, BillRecurrence, BudgetStatus, BillStatus
+from app.models.budget import Budget, BudgetPeriod, BillStatus
 from app.models.user import User
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionType
 from app.models.category import Category
+from app.utils.budget_helpers import get_budget_or_raise, get_period_dates, advance_bill_cycle
+from app.api.dependencies.auth import get_user_by_id
 from app.schemas.budget import (
     BudgetCreate, BudgetUpdate, SpendingLimitUpdate,
-    BudgetProgressResponse, BudgetAlertResponse, BudgetSummaryResponse,
-    BudgetGroupResponse, BudgetResponse, AlertType
+    BudgetProgressResponse, BudgetAlertResponse, BudgetSummaryResponse, 
+    BudgetGroupResponse, BudgetResponse, SpendingLimitResponse
 )
-from app.api.dependencies.date_range import DateRangeHelper
 from app.core.exceptions import (
-    BudgetNotFoundException,
     BudgetAlreadyExistsException,
-    InvalidPeriodException,
     CategoryNotFoundException
 )
 
@@ -84,7 +83,7 @@ class BudgetService:
             period=data.period,
             start_date=data.start_date,
             end_date=data.end_date,
-            threshold=data.threshold,
+            # threshold=data.threshold,
             is_bill=data.is_bill,
             bill_name=data.bill_name,
             due_date=data.due_date,
@@ -101,19 +100,6 @@ class BudgetService:
         return BudgetResponse.model_validate(budget)
     
     @staticmethod
-    def get_budget(db: Session, user_id: UUID, budget_id: UUID) -> BudgetResponse:
-        """Get a single budget by ID."""
-        budget = db.query(Budget).filter(
-            Budget.budget_id == budget_id,
-            Budget.user_id == user_id
-        ).first()
-        
-        if not budget:
-            raise BudgetNotFoundException(budget_id)
-        
-        return BudgetResponse.model_validate(budget)
-    
-    @staticmethod
     def get_budgets(
         db: Session,
         user_id: UUID,
@@ -122,7 +108,7 @@ class BudgetService:
         end_date: Optional[datetime] = None,
         category_id: Optional[UUID] = None,
         is_bill: Optional[bool] = None
-    ) -> List[Budget]:
+    ) -> List[BudgetResponse]:
         """Get flat list of budgets with filters."""
         query = db.query(Budget).filter(Budget.user_id == user_id)
         
@@ -141,7 +127,7 @@ class BudgetService:
         if is_bill is not None:
             query = query.filter(Budget.is_bill == is_bill)
         
-        return query.order_by(Budget.created_at.desc()).all()
+        return [BudgetResponse.model_validate(b) for b in query.order_by(Budget.created_at.desc()).all()]
     
     @staticmethod
     def update_budget(
@@ -151,17 +137,17 @@ class BudgetService:
         data: BudgetUpdate
     ) -> Budget:
         """Update a budget or bill."""
-        budget = BudgetService.get_budget(db, user_id, budget_id)
-        
+        budget = get_budget_or_raise(db, user_id, budget_id)
+                
         # Update fields
         update_data = data.model_dump(exclude_unset=True)
         
         # Handle bill status change to PAID
-        if budget.is_bill and update_data.get('bill_status') == BillStatus.PAID:
+        if budget.is_bill and update_data.get('status') == BillStatus.PAID:
             # Advance bill cycle
-            budget = BudgetService._advance_bill_cycle(db, budget)
+            advance_bill_cycle(budget)
             # Remove bill_status from update_data to avoid conflict
-            update_data.pop('bill_status', None)
+            update_data.pop('status', None)
         
         # Apply remaining updates
         for field, value in update_data.items():
@@ -178,31 +164,217 @@ class BudgetService:
     @staticmethod
     def delete_budget(db: Session, user_id: UUID, budget_id: UUID) -> None:
         """Delete a budget."""
-        budget = BudgetService.get_budget(db, user_id, budget_id)
-        
+        budget = get_budget_or_raise(db, user_id, budget_id)
+                
         db.delete(budget)
         db.commit()
         
         logger.info(f"Deleted budget {budget_id}")
         
+    @staticmethod
+    def calculate_budget_progress(
+        db: Session, user_id: UUID, period
+    ) -> BudgetProgressResponse:
+        """Calculate spending progress for a single budget."""
+        user = get_user_by_id(db, user_id)
+        
+        start_date, end_date = get_period_dates(period, datetime.now(timezone.utc))
+
+        spent = BudgetService._calculate_total_period_spending(
+            db, user_id, start_date, end_date
+        )
+        
+        spending_limit = user.spending_limit or Decimal("0.00")
+        remaining = max(Decimal("0.00"), spending_limit - spent)
+        percentage = float(spent / spending_limit * 100) if spending_limit > 0 else 0.0
+
+        if not spending_limit:
+            status = "on_track"
+        elif spent > spending_limit:
+            status = "exceeded"
+        elif percentage >= user.threshold:
+            status = "warning"
+        else:
+            status = "on_track"
+
+        return BudgetProgressResponse(
+            spending_limit=spending_limit,
+            spent=spent,
+            remaining=remaining,
+            percentage=round(percentage, 2),
+            status=status,
+        )
+    
     # @staticmethod
-    # def _advance_bill_cycle(db: Session, budget: Budget) -> Budget:
-    #     """Advance bill cycle when marked as paid."""
-    #     if not budget.is_bill or not budget.recurrence:
-    #         return budget
+    # def calculate_budget_vs_actual(
+    #     db: Session, user_id: UUID, period: BudgetPeriod
+    # ) -> list[BudgetProgressResponse]:
+    #     """Compare all budgets against actual spending for a period."""
+    #     budgets = db.query(Budget).filter(
+    #         Budget.user_id == user_id,
+    #         Budget.period == period,
+    #     ).all()
+
+    #     return [
+    #         BudgetService.calculate_budget_progress(db, user_id, b.budget_id)
+    #         for b in budgets
+    #     ]
+    
+    @staticmethod
+    def get_budget_alerts(db: Session, user_id: UUID, period) -> list[BudgetAlertResponse]:
+        """Return all active alerts: threshold breaches and bill reminders."""
+        alerts = []
         
-    #     # Advance due date
-    #     new_due_date = BillCycleHelper.advance_due_date(budget.due_date, budget.recurrence)
+        progress = BudgetService.calculate_budget_progress(db, user_id, period)
+        if progress.status in ("warning", "exceeded"):
+            alerts.append(BudgetAlertResponse(
+                message=(
+                    "You have exceeded your budget for this period"
+                    if progress.status == "exceeded"
+                    else f"You have used {progress.percentage}% of your budget"
+                ),
+                alert_type="threshold_exceeded",
+            ))
+                        
+        # For bills alerts
+        budgets = db.query(Budget).filter(Budget.user_id == user_id).all()
+
+        for budget in budgets:
+            if budget.is_bill:
+                days = budget.days_remaining
+                if days is not None and days < 0 and budget.status != BillStatus.PAID:
+                    alerts.append(BudgetAlertResponse(
+                        budget_id=budget.budget_id,
+                        bill_name=budget.bill_name,
+                        category_id=budget.category_id,
+                        message=f"{budget.bill_name} is overdue by {abs(days)} day(s)",
+                        alert_type="bill_overdue",
+                    ))
+                elif days is not None and 0 <= days <= 7 and budget.status != BillStatus.PAID:
+                    alerts.append(BudgetAlertResponse(
+                        budget_id=budget.budget_id,
+                        bill_name=budget.bill_name,
+                        category_id=budget.category_id,
+                        message=f"{budget.bill_name} is due in {days} day(s)",
+                        alert_type="bill_due",
+                    ))
+        return alerts
+    
+    @staticmethod
+    def get_budget_summary(
+        db: Session, user_id: UUID, period: BudgetPeriod
+    ) -> BudgetSummaryResponse:
+        """
+        Return full dashboard summary grouped by category hierarchy.
+        Progress is calculated once globally (total spent vs spending limit).
+        Chips show planned budget amounts only — no per-category progress.
+        """
+        # Fetch user
+        user = get_user_by_id(db, user_id)
+
+        # Calculate global progress once — not per chip
+        progress = BudgetService.calculate_budget_progress(db, user_id, period)
+        total_spent = progress.spent
+
+        # Fetch all budgets for this period
+        budgets = db.query(Budget).filter(
+            Budget.user_id == user_id,
+            Budget.period == period,
+        ).all()
+
+        # Fetch parent categories (group headers) ordered by display_order
+        parent_categories = db.query(Category).filter(
+            Category.user_id == user_id,
+            Category.parent_id == None,
+            Category.is_active == True,
+        ).order_by(Category.display_order).all()
+
+        # Map category_id → budget for quick lookup
+        budget_map = {b.category_id: b for b in budgets}
+
+        groups = []
+        total_budgeted = Decimal("0.00")
+
+        for parent in parent_categories:
+            child_categories = db.query(Category).filter(
+                Category.parent_id == parent.category_id,
+                Category.is_active == True,
+            ).order_by(Category.display_order).all()
+
+            group_budgets = []
+            group_budgeted = Decimal("0.00")
+
+            for child in child_categories:
+                budget = budget_map.get(child.category_id)
+                if not budget:
+                    continue
+
+                # Chips show planned amounts only — no per-budget progress
+                group_budgets.append(BudgetResponse.model_validate(budget))
+                group_budgeted += budget.amount
+
+            if not group_budgets:
+                continue
+
+            groups.append(BudgetGroupResponse(
+                group_id=parent.category_id,
+                group_name=parent.name,
+                group_total_budgeted=group_budgeted,
+                group_total_spent=total_spent,  # same figure across all groups
+                budgets=group_budgets,
+            ))
+
+            total_budgeted += group_budgeted
+
+        return BudgetSummaryResponse(
+            period=period,
+            spending_limit=user.spending_limit,
+            total_budgeted=total_budgeted,
+            total_spent=total_spent,
+            total_remaining=max(Decimal("0.00"), user.spending_limit - total_spent) if user.spending_limit else Decimal("0.00"),
+            groups=groups,
+        )
         
-    #     # Update budget
-    #     budget.due_date = new_due_date
-    #     budget.bill_status = BillStatus.PENDING
-        
-    #     # Reset period dates if needed
-    #     start, end = BudgetPeriodHelper.get_period_dates(budget.period, new_due_date)
-    #     budget.start_date = start
-    #     budget.end_date = end
-        
-    #     logger.info(f"Advanced bill cycle for {budget.bill_name}, new due date: {new_due_date}")
-        
-    #     return budget
+    # ─── Spending Limit ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def get_spending_limit(db: Session, user_id: UUID) -> SpendingLimitResponse:
+        """Return the user's global spending limit."""
+        user = get_user_by_id(db, user_id)
+        return SpendingLimitResponse(spending_limit=user.spending_limit)
+
+    @staticmethod
+    def update_spending_limit(
+        db: Session, user_id: UUID, data: SpendingLimitUpdate
+    ) -> SpendingLimitResponse:
+        """Update the user's global spending limit."""
+        user = get_user_by_id(db, user_id)
+
+        user.spending_limit = data.spending_limit
+        user.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(user)
+
+        logger.info(f"Spending limit updated for user {user_id}")
+        return SpendingLimitResponse(spending_limit=user.spending_limit)
+
+    @staticmethod
+    def _calculate_total_period_spending(
+        db: Session,
+        user_id: UUID,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> Decimal:
+        """
+        Sum all expense transactions for a user within a date range.
+        """
+        result = db.query(
+            func.coalesce(func.sum(Transaction.amount), 0)
+        ).filter(
+            Transaction.user_id == user_id,
+            Transaction.type == TransactionType.EXPENSE,
+            Transaction.transaction_date >= start_date,
+            Transaction.transaction_date <= end_date,
+        ).scalar()
+
+        return Decimal(str(result))

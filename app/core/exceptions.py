@@ -140,3 +140,34 @@ class InvalidPasswordException(PesaPlanException):
             error_code="INVALID_PASSWORD",
             headers={"WWW-Authenticate": "Bearer"}
         )
+
+# ─── Budget Exceptions ────────────────────────────────────────────────────────
+class BudgetAlreadyExistsException(PesaPlanException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Budget Already Exists"
+        )
+        
+class BudgetNotFoundException(PesaPlanException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Budget not found",
+        )
+        
+class DuplicateBudgetException(PesaPlanException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A budget already exists for this category in the selected period",
+        )
+        
+# ─── Category Exceptions ──────────────────────────────────────────────────────
+
+class CategoryNotFoundException(PesaPlanException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category not found",
+        )

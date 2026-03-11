@@ -1,5 +1,5 @@
 """User Database Model"""
-from sqlalchemy import Column, String, Boolean, DateTime, UUID, Index, JSON, Numeric
+from sqlalchemy import Column, String, Boolean, DateTime, UUID, Index, JSON, Numeric, Integer
 from sqlalchemy.sql import func
 from app.database import Base
 import uuid
@@ -39,6 +39,7 @@ class User(Base):
     
     # Budget
     spending_limit = Column(Numeric(12, 2), nullable=True)
+    threshold = Column(Integer, default=80)
     
     # Index for faster lookups
     __table_args__ = (

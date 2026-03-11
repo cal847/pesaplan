@@ -2,12 +2,10 @@
 Budget schemas for API requests and responses
 """
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, List
+from typing import Optional
 from uuid import UUID
 from decimal import Decimal
-from datetime import datetime, date
-from decimal import Decimal
-from enum import Enum
+from datetime import datetime
 from app.models.budget import BudgetPeriod, BillRecurrence, BillStatus
 
 class BudgetCreate(BaseModel):
@@ -45,7 +43,7 @@ class BudgetUpdate(BaseModel):
     period: Optional[BudgetPeriod] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    threshold: Optional[int] = None
+    # threshold: Optional[int] = None
 
     # Bill fields
     is_bill: Optional[bool] = None
@@ -62,12 +60,12 @@ class BudgetUpdate(BaseModel):
             raise ValueError("Amount must be greater than 0")
         return v
 
-    @field_validator("threshold")
-    @classmethod
-    def threshold_must_be_valid(cls, v):
-        if v is not None and not (1 <= v <= 100):
-            raise ValueError("Threshold must be between 1 and 100")
-        return v
+    # @field_validator("threshold")
+    # @classmethod
+    # def threshold_must_be_valid(cls, v):
+    #     if v is not None and not (1 <= v <= 100):
+    #         raise ValueError("Threshold must be between 1 and 100")
+    #     return v
 
 
 class SpendingLimitUpdate(BaseModel):
@@ -88,7 +86,7 @@ class BudgetResponse(BaseModel):
     period: BudgetPeriod
     start_date: datetime
     end_date: datetime
-    threshold: int
+    # threshold: int
 
     # Bill fields
     is_bill: bool
@@ -106,9 +104,7 @@ class BudgetResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 class BudgetProgressResponse(BaseModel):
-    budget_id: UUID
-    category_id: UUID
-    amount: Decimal
+    spending_limit: Decimal
     spent: Decimal
     remaining: Decimal
     percentage: float
@@ -117,9 +113,9 @@ class BudgetProgressResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 class BudgetAlertResponse(BaseModel):
-    budget_id: UUID
-    bill_name: Optional[str]
-    category_id: UUID
+    budget_id: Optional[UUID] = None
+    bill_name: Optional[str] = None
+    category_id: Optional[UUID] = None
     message: str
     alert_type: str
 
@@ -130,7 +126,7 @@ class BudgetGroupResponse(BaseModel):
     group_name: str
     group_total_budgeted: Decimal
     group_total_spent: Decimal
-    budgets: list[BudgetProgressResponse]
+    budgets: list[BudgetResponse]
 
     model_config = {"from_attributes": True}
 

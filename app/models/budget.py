@@ -20,6 +20,12 @@ class BudgetPeriod(str, enum.Enum):
     QUARTERLY = "quarterly"
     YEARLY = "yearly"
     CUSTOM = "custom"
+
+class BudgetStatus(str, enum.Enum):
+    """Enum for bill status"""
+    EXCEEDED = "exceeded"
+    WARNING = "warning"
+    ON_TRACK = "on_track"
     
 class BillRecurrence(str, enum.Enum):
     """Enum for bill recurrence patterns."""
@@ -31,6 +37,7 @@ class BillRecurrence(str, enum.Enum):
     
 class BillStatus(str, enum.Enum):
     """Enum for bill status"""
+    PENDING = "pending"
     PAID = "paid"
     DUE = "due"
     OVERDUE = "overdue"
@@ -44,9 +51,9 @@ class Budget(Base):
     
     amount = Column(Numeric(12, 2), nullable=False)
     period = Column(Enum(BudgetPeriod), nullable=False, default=BudgetPeriod.MONTHLY)
+    # budget_status = Column(Enum(BudgetStatus))
     start_date = Column(DateTime(timezone=True), nullable=False,)
     end_date = Column(DateTime(timezone=True), nullable=False,)
-    threshold = Column(Integer, default=80)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -56,7 +63,7 @@ class Budget(Base):
     bill_name = Column(String(255), nullable=True)
     due_date = Column(DateTime(timezone=True))
     recurrence = Column(Enum(BillRecurrence))
-    status = Column(Enum(BillStatus))
+    bill_status = Column(Enum(BillStatus))
     last_paid_at = Column(DateTime(timezone=True))
     
     # Relationships
@@ -65,11 +72,11 @@ class Budget(Base):
     
     # Indexes
     __table_args__ = (
-        Index('ix_budgets_user_id', 'user_id', comment="Speed up user budget queries"),
-        Index('ix_budgets_category', 'category_id', comment="Speed up category budget queries"),
-        Index('ix_budget_dates', 'start_date', 'end_date', comment="Speed up date-range queries"),
-        Index('ix_budgets_is_bill', 'user_id', 'is_bill', comment="Speed up bill queries on home dashboard"),
-        Index('ix_budgets_due_date', 'due_date', comment="Speed up days_remaining sort on dashboard"),
+        Index('ix_budgets_user_id', 'user_id'),
+        Index('ix_budgets_category', 'category_id'),
+        Index('ix_budget_dates', 'start_date', 'end_date'),
+        Index('ix_budgets_is_bill', 'user_id', 'is_bill'),
+        Index('ix_budgets_due_date', 'due_date'),
     )
     
     @property
