@@ -250,15 +250,30 @@ class TestGetBudgetAlerts:
         assert any(a.alert_type == "bill_due" for a in alerts)
 
     def test_paid_bill_no_alert(self):
-        bill = make_bill(BillRecurrence.MONTHLY, status=BillStatus.PAID)
-        bill.days_remaining = -1
+        """Test that paid bills don't generate alerts even if overdue."""
+        # Create a paid bill that would otherwise trigger an alert
+        bill = Budget(
+            budget_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            category_id=uuid.uuid4(),
+            amount=Decimal("100.00"),
+            period=BudgetPeriod.MONTHLY,
+            start_date=datetime.now(timezone.utc),
+            end_date=datetime.now(timezone.utc) + timedelta(days=30),
+            is_bill=True,
+            bill_name="Test Bill",
+            due_date=datetime.now(timezone.utc) - timedelta(days=1),  # Overdue
+            recurrence=BillRecurrence.MONTHLY,
+            bill_status=BillStatus.PAID,  # But paid
+        )
+        
         db = self._setup_db(bills=[bill])
 
         with patch.object(BudgetService, "calculate_budget_progress", return_value=self._mock_progress("on_track")):
             alerts = BudgetService.get_budget_alerts(db, uuid.uuid4(), BudgetPeriod.MONTHLY)
 
+        # Assert that no bill alerts are generated
         assert not any(a.alert_type in ("bill_overdue", "bill_due") for a in alerts)
-
     def test_no_alerts_when_all_clear(self):
         db = self._setup_db()
         with patch.object(BudgetService, "calculate_budget_progress", return_value=self._mock_progress("on_track")):

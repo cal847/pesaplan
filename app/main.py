@@ -4,8 +4,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.database import engine, Base
 
-from app.api.routes import auth
+from app.api.routes import auth_route
 from app.api.routes import user_profile
+from app.api.routes import budget_route
+
 # Creates all tables
 Base.metadata.create_all(bind=engine)
 
@@ -49,5 +51,6 @@ def home():
 def health_check():
     return {"status": "healthy"}
 
-app.include_router(auth.router, prefix=f"/api/{settings.APP_VERSION}/auth", tags=["Authentication"])
+app.include_router(auth_route.router, prefix=f"/api/{settings.APP_VERSION}/auth", tags=["Authentication"])
 app.include_router(user_profile.router, prefix=f"/api/{settings.APP_VERSION}", tags=["Users"])
+app.include_router(budget_route.router, prefix=f"/api/{settings.APP_VERSION}", tags=["Budget"])

@@ -70,4 +70,4 @@ def advance_bill_cycle(budget):
         # One-off bills stay PAID permanently — no cycle to advance
         return
 
-    budget.status = BillStatus.PENDING
+    budget.bill_status = BillStatus.PENDING

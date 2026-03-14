@@ -145,7 +145,7 @@ class InvalidPasswordException(PesaPlanException):
 class BudgetAlreadyExistsException(PesaPlanException):
     def __init__(self):
         super().__init__(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail="Budget Already Exists"
         )
         
@@ -156,12 +156,12 @@ class BudgetNotFoundException(PesaPlanException):
             detail="Budget not found",
         )
         
-class DuplicateBudgetException(PesaPlanException):
-    def __init__(self):
-        super().__init__(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A budget already exists for this category in the selected period",
-        )
+# class DuplicateBudgetException(PesaPlanException):
+#     def __init__(self):
+#         super().__init__(
+#             status_code=status.HTTP_409_CONFLICT,
+#             detail="A budget already exists for this category in the selected period",
+#         )
         
 # ─── Category Exceptions ──────────────────────────────────────────────────────
 

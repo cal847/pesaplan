@@ -93,8 +93,7 @@ class BudgetResponse(BaseModel):
     bill_name: Optional[str]
     due_date: Optional[datetime]
     recurrence: Optional[BillRecurrence]
-    icon_url: Optional[str]
-    status: Optional[BillStatus]
+    bill_status: Optional[BillStatus]
     last_paid_at: Optional[datetime]
     days_remaining: Optional[int]
 
@@ -139,7 +138,6 @@ class BudgetSummaryResponse(BaseModel):
     groups: list[BudgetGroupResponse]
 
     model_config = {"from_attributes": True}
-
 
 class SpendingLimitResponse(BaseModel):
     spending_limit: Optional[Decimal]

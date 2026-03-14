@@ -88,8 +88,7 @@ class BudgetService:
             bill_name=data.bill_name,
             due_date=data.due_date,
             recurrence=data.recurrence,
-            icon_url=data.icon_url,
-            status=BillStatus.PENDING if data.is_bill else None,
+            bill_status=BillStatus.PENDING if data.is_bill else None,
         )
         
         db.add(budget)
@@ -242,7 +241,7 @@ class BudgetService:
         for budget in budgets:
             if budget.is_bill:
                 days = budget.days_remaining
-                if days is not None and days < 0 and budget.status != BillStatus.PAID:
+                if days is not None and days < 0 and budget.bill_status != BillStatus.PAID:
                     alerts.append(BudgetAlertResponse(
                         budget_id=budget.budget_id,
                         bill_name=budget.bill_name,
@@ -250,7 +249,7 @@ class BudgetService:
                         message=f"{budget.bill_name} is overdue by {abs(days)} day(s)",
                         alert_type="bill_overdue",
                     ))
-                elif days is not None and 0 <= days <= 7 and budget.status != BillStatus.PAID:
+                elif days is not None and 0 <= days <= 7 and budget.bill_status != BillStatus.PAID:
                     alerts.append(BudgetAlertResponse(
                         budget_id=budget.budget_id,
                         bill_name=budget.bill_name,
