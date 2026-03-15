@@ -43,9 +43,9 @@ class Goal(Base):
     
     # Indexes
     __table_args__ = (
-        Index('ix_goals_user_id', 'user_id', comment="Speed up user goal queries"),
-        Index('ix_goals_status', 'status', comment="Filter by status"),
-        Index('ix_goals_target_date', 'target_date', comment="Sort by deadline"),
+        Index('ix_goals_user_id', 'user_id'),
+        Index('ix_goals_status', 'status'),
+        Index('ix_goals_target_date', 'target_date'),
     )
     
     @property

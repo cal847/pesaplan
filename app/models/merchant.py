@@ -4,7 +4,7 @@ Represents businesses, stores, or service providers where users spend money.
 Auto-populated from M-Pesa SMS data to help with automatic categorization.
 """
 
-from sqlalchemy import Column, String, UUID, Integer, Index, DateTime
+from sqlalchemy import Column, String, UUID, Index, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -29,7 +29,7 @@ class Merchant(Base):
     
     # Indexes
     __table_args__ = (
-        Index('ix_merchants_name', 'merchant_name', comment="Speed up merchant lookups by name")
+        Index('ix_merchants_name', 'merchant_name'),
     )
     
     def __repr__(self) -> str:

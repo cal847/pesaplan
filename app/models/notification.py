@@ -51,11 +51,11 @@ class Notification(Base):
     
     # Indexes
     __table_args__ = (
-        Index('ix_notifications_user_id', 'user_id', comment="Speed up user notification queries"),
-        Index('ix_notifications_user_read', 'user_id', 'is_read', comment="Quick count of unread notifications"),
-        Index('ix_notifications_type', 'type', comment="Filter by notification type"),
-        Index('ix_notifications_created', 'created_at', comment="Sort by date"),
-        Index('ix_notifications_expiry', 'expires_at', comment="Find expired notifications"),
+        Index('ix_notifications_user_id', 'user_id'),
+        Index('ix_notifications_user_read', 'user_id', 'is_read'),
+        Index('ix_notifications_type', 'type'),
+        Index('ix_notifications_created', 'created_at'),
+        Index('ix_notifications_expiry', 'expires_at'),
     )
     
     def mark_as_read(self) -> None:
