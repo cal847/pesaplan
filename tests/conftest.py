@@ -16,9 +16,7 @@ os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 os.environ["FRONTEND_URL"] = "http://localhost:3000" 
 
 from app.main import app
-from app.config import settings
 from app.database import Base, get_db
-from app.models.user import User
 from app.models import *
 from app.core.security import get_password_hash, create_access_token
 
@@ -178,3 +176,38 @@ def auth_headers(test_user, client) -> dict:
     """
     access_token = create_access_token({"sub": str(test_user.user_id)})
     return {"Authorization": f"Bearer {access_token}"}
+
+@pytest.fixture(scope="function")
+def test_category(db_session, test_user) -> Category:
+    """Seeded parent category for testing"""
+    category = Category(
+        category_id=uuid.uuid4(),
+        user_id=test_user.user_id,
+        name="The Essentials",
+        type="expense",
+        parent_id=None,
+        display_order=0,
+        is_active=True,
+    )
+    db_session.add(category)
+    db_session.commit()
+    db_session.refresh(category)
+    return category
+
+
+@pytest.fixture(scope="function")
+def test_child_category(db_session, test_user, test_category) -> Category:
+    """Seeded child category under test_category"""
+    category = Category(
+        category_id=uuid.uuid4(),
+        user_id=test_user.user_id,
+        name="Food",
+        type="expense",
+        parent_id=test_category.category_id,
+        display_order=0,
+        is_active=True,
+    )
+    db_session.add(category)
+    db_session.commit()
+    db_session.refresh(category)
+    return category

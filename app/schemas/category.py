@@ -31,8 +31,8 @@ class CategoryTreeResponse(BaseModel):
     category_id: UUID
     name: str
     type: str
-    display_order: str
+    display_order: int
     children: list["CategoryTreeResponse"] = []
     
-class CategoryReorderREquest(BaseModel):
+class CategoryReorderRequest(BaseModel):
     ordered_ids: list[UUID]

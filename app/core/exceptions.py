@@ -171,3 +171,31 @@ class CategoryNotFoundException(PesaPlanException):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Category not found",
         )
+        
+class InvalidParentCategoryException(PesaPlanException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Parent category must be a top-level category. Nesting beyond 2 levels is not allowed."
+        )
+        
+class CategoryAlreadyExistsException(PesaPlanException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A category with this name already exists",
+        )
+
+class CategoryHasChildrenException(PesaPlanException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot deactivate a category that has active subcategories",
+        )
+
+class CategoryHasBudgetsException(PesaPlanException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot deactivate a category that has active budgets",
+        )
