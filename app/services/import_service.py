@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class SMSImportService:
     def __init__(self, db: AsyncSession):
-        self.db = self.db
+        self.db = db
         self.parser = SMSParserService()
         self.transaction_service = TransactionService(db)
     
@@ -70,11 +70,11 @@ class SMSImportService:
         """
         parsed = self.parser.parse_sms(raw)
         
-        if self.parsed is None:
+        if parsed is None:
             logger.info(
                 "sms_uparseable",
                 extra={"preview": raw[:60]}
             )
             return None
         
-        return self.transaction_service.create_from_sms(parsed, user_id)
+        return await self.transaction_service.create_from_sms(parsed, user_id)
