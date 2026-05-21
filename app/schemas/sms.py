@@ -30,13 +30,12 @@ class SMSParseResult(BaseModel):
     transaction_code: Optional[str]
     amount: Decimal
     merchant_name: Optional[str]
-    account_number: Optional[str]
+    account_number: Optional[str] =  None
     transaction_type: ParsedTransactionType
     transaction_date: datetime
 
 class SMSImportResponse(BaseModel):
     total: int
     saved: int
-    duplicates: int
+    skipped: int
     failed: int
-    errors: list[dict[str, str]]
