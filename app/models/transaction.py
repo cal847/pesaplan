@@ -19,7 +19,7 @@ class TransactionStatus(str, enum.Enum):
     """Enum for transaction/bill status."""
     PENDING = "pending"
     COMPLETED = "completed"
-    FAILED = "failed"
+    FAILED = "bfailed"
     PAID = "paid" 
     OVERDUE = "overdue"
 
