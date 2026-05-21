@@ -22,8 +22,11 @@ class SMSParserService:
     DATE_PATTERN = r"on (\d{1,2}/\d{1,2}/\d{2}) at (\d{1,2}:\d{2} [AP]M)"
     CODE_PATTERN = r"^([A-Z0-9]{10})"
     
+    
     def parse_sms(self, message: str) -> Optional[SMSParseResult]:
         transaction_code = self._extract_code(message)
+        transaction_cost = self._extract_transaction_cost(message)
+        
         if not transaction_code:
             logger.warning(
                 "transaction_code_unavailable",
@@ -58,16 +61,14 @@ class SMSParserService:
                 transaction_type=ParsedTransactionType.INCOME,
                 transaction_date=transaction_date,
             )
-            
 
-        
         # Paybill
         if match := re.search(self.PATTERNS["paybill"], message):
-            logger.info("transaction_saved_as_epense")
+            logger.info("transaction_saved_as_expense")
 
             return SMSParseResult(
                 transaction_code=transaction_code,
-                amount=Decimal(match.group(1).replace(",", "")),
+                amount=Decimal(match.group(1).replace(",", "")) + transaction_cost, # Includes transaction cost
                 merchant_name=match.group(2).strip(),
                 account_number=match.group(3).strip(),
                 transaction_type=ParsedTransactionType.EXPENSE,
@@ -76,11 +77,11 @@ class SMSParserService:
             
         # Sent to person
         if match := re.search(self.PATTERNS["sent_person"], message):
-            logger.info("transaction_saved_as_epense")
+            logger.info("transaction_saved_as_expense")
 
             return SMSParseResult(
                 transaction_code=transaction_code,
-                amount=Decimal(match.group(1).replace(",", "")),
+                amount=Decimal(match.group(1).replace(",", "")) + transaction_cost,
                 merchant_name=match.group(2).strip(),
                 transaction_type=ParsedTransactionType.EXPENSE,
                 transaction_date=transaction_date,
@@ -88,11 +89,11 @@ class SMSParserService:
             
         # Till payment
         if match := re.search(self.PATTERNS["till_payment"], message):
-            logger.info("transaction_saved_as_epense")
+            logger.info("transaction_saved_as_expense")
 
             return SMSParseResult(
                 transaction_code=transaction_code,
-                amount=Decimal(match.group(1).replace(",", "")),
+                amount=Decimal(match.group(1).replace(",", "")) + transaction_cost,
                 merchant_name=match.group(2).strip(),
                 transaction_type=ParsedTransactionType.EXPENSE,
                 transaction_date=transaction_date,
@@ -102,15 +103,14 @@ class SMSParserService:
         if re.search(self.PATTERNS["airtime"], message, re.IGNORECASE):
             amount = self._extract_amount(message)
             
-            logger.info("transaction_saved_as_epense")
+            logger.info("transaction_saved_as_expense")
 
             return SMSParseResult(
                 transaction_code=transaction_code,
-                amount=amount,
+                amount=amount + transaction_cost,
                 merchant_name="Safaricom",
                 transaction_type=ParsedTransactionType.EXPENSE,
                 transaction_date=transaction_date,
-                raw_message=message
             )
             
         return None
@@ -130,3 +130,6 @@ class SMSParserService:
         date_str = f"{match.group(1)} {match.group(2)}"
         return datetime.strptime(date_str, "%d/%m/%y %I:%M %p")
             
+    def _extract_transaction_cost(self, message: str) -> Decimal:
+        match = re.search(r"Transaction cost,? Ksh\.?([\d,]+\.?\d*)", message)
+        return Decimal(match.group(1).replace(",", "")) if match else Decimal("0")

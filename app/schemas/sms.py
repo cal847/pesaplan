@@ -19,7 +19,7 @@ class SMSMessage(BaseModel):
         return v.strip()
     
 class SMSBatch(BaseModel):
-    message: list[SMSMessage] = Field(min_length=1, max_length=100)
+    messages: list[SMSMessage] = Field(min_length=1, max_length=100)
     
 class ParsedTransactionType(str, Enum):
     INCOME = "income"
@@ -27,7 +27,7 @@ class ParsedTransactionType(str, Enum):
     SAVINGS = "savings"
     
 class SMSParseResult(BaseModel):
-    trasanction_code: str
+    transaction_code: Optional[str]
     amount: Decimal
     merchant_name: Optional[str]
     account_number: Optional[str]
