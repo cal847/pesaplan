@@ -63,8 +63,5 @@ async def import_sms_batch(
     )
     
     return SMSImportResponse(
-        total=len(payload.messages),
-        saved=results["created"],
-        skipped=results["skipped"],
-        failed=results["failed"],
+        total=len(payload.messages)
     )

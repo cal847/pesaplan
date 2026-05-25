@@ -14,6 +14,7 @@ class TransactionType(str, enum.Enum):
     """Enum for transaction types"""
     INCOME = "income"
     EXPENSE = "expense"
+    SAVINGS = "savings"
     
 class TransactionStatus(str, enum.Enum):
     """Enum for transaction/bill status."""

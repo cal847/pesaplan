@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 from app.worker.celery_app import celery_app
 from app.database import SessionLocal

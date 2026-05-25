@@ -17,7 +17,7 @@ class MerchantService:
         """
         normalised = merchant_name.strip().upper()
         
-        result = self.db.query(Merchant).filter(
+        merchant = self.db.query(Merchant).filter(
             Merchant.merchant_name == normalised
         ).first()
                 

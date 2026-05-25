@@ -8,7 +8,7 @@ celery_app = Celery(
     include=["app.worker.tasks"],
 )
 
-celery_app.config.update(
+celery_app.conf.update(
     task_serializer="json",
     result_expires=3600,
     taks_acks_late=True,

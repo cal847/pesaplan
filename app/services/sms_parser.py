@@ -126,7 +126,7 @@ class SMSParserService:
     def _extract_date_time(self, message: str) -> datetime:
         match = re.search(self.DATE_PATTERN, message)
         if not match:
-            return datetime.now()
+            return None
         date_str = f"{match.group(1)} {match.group(2)}"
         return datetime.strptime(date_str, "%d/%m/%y %I:%M %p")
             
