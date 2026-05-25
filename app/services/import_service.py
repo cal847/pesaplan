@@ -1,8 +1,7 @@
 # Import service for bulk sms imports
 import logging
 from typing import Optional
-
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.schemas.sms import SMSParseResult
 from app.services.sms_parser import SMSParserService
@@ -11,12 +10,12 @@ from app.services.transaction_service import TransactionService
 logger = logging.getLogger(__name__)
 
 class SMSImportService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: Session):
         self.db = db
         self.parser = SMSParserService()
         self.transaction_service = TransactionService(db)
     
-    async def process_batch(self, messages: list[str], user_id: str) -> dict:
+    def process_batch(self, messages: list[str], user_id: str) -> dict:
         """
         Takes raw SMS list, parses it ans persists.
         Returns created/skipped/failed counts
@@ -34,7 +33,7 @@ class SMSImportService:
                     results["skipped"] += 1
                     continue
                 
-                transaction = await self.transaction_service.create_from_sms(parsed, user_id)
+                transaction =  self.transaction_service.create_from_sms(parsed, user_id)
                 
                 if transaction:
                     results["created"] += 1
@@ -64,7 +63,7 @@ class SMSImportService:
         )
         return results
     
-    async def process_one(self, raw: str, user_id: str) -> Optional[object]:
+    def process_one(self, raw: str, user_id: str) -> Optional[object]:
         """
         Processes single SMS in real-time
         """
@@ -77,4 +76,4 @@ class SMSImportService:
             )
             return None
         
-        return await self.transaction_service.create_from_sms(parsed, user_id)
+        return  self.transaction_service.create_from_sms(parsed, user_id)
