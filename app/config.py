@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     POSTGRES_DB: str
     DATABASE_URL: Optional[str] = None
     
+    #REDIS
+    REDIS_URL: str
+    
     #CORS
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

@@ -14,12 +14,13 @@ class TransactionType(str, enum.Enum):
     """Enum for transaction types"""
     INCOME = "income"
     EXPENSE = "expense"
+    SAVINGS = "savings"
     
 class TransactionStatus(str, enum.Enum):
     """Enum for transaction/bill status."""
     PENDING = "pending"
     COMPLETED = "completed"
-    FAILED = "failed"
+    FAILED = "bfailed"
     PAID = "paid" 
     OVERDUE = "overdue"
 
@@ -27,9 +28,11 @@ class Transaction(Base):
     __tablename__ = "transactions"
     
     transaction_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    transaction_code = Column(String(20), nullable=True, unique=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     category_id = Column(UUID(as_uuid=True), ForeignKey("categories.category_id", ondelete="SET NULL"), nullable=True)
     merchant_id = Column(UUID(as_uuid=True), ForeignKey("merchants.merchant_id", ondelete="SET NULL"), nullable=True)
+    paybill_account_number = Column(String(50), nullable=True)
     amount = Column(Numeric(12, 2), nullable=False)
     type = Column(Enum(TransactionType), nullable=False)
     transaction_date = Column(DateTime(timezone=True), nullable=False, default=func.now())
@@ -46,6 +49,7 @@ class Transaction(Base):
         Index('ix_transactions_user_id', 'user_id'),
         Index('ix_transactions_date', 'transaction_date'),
         Index('ix_transactions_type', 'type'),
+        Index('ix_transactions_code', 'transaction_code')
     )
     
     def __repr__(self) -> str:
