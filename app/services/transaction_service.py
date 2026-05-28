@@ -46,9 +46,12 @@ class TransactionService:
             return None
         
         merchant_id = None
+        category_id = None
+        
         if parsed.merchant_name:
             merchant =  self.merchant_service.get_or_create(parsed.merchant_name)
             merchant_id = merchant.merchant_id
+            category_id = merchant.category_id
             
         transaction = Transaction(
             user_id=user_id,
@@ -56,6 +59,7 @@ class TransactionService:
             amount=parsed.amount,
             type=parsed.transaction_type,
             merchant_id=merchant_id,
+            category_id=category_id,
             paybill_account_number=getattr(parsed, "account_number", None),
             transaction_date=parsed.transaction_date,
         )
