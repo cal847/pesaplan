@@ -49,7 +49,7 @@ class TransactionService:
         category_id = None
         
         if parsed.merchant_name:
-            merchant =  self.merchant_service.get_or_create(parsed.merchant_name)
+            merchant =  self.merchant_service.get_or_create(user_id, parsed.merchant_name)
             merchant_id = merchant.merchant_id
             category_id = merchant.category_id
             

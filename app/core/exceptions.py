@@ -199,3 +199,11 @@ class CategoryHasBudgetsException(PesaPlanException):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot deactivate a category that has active budgets",
         )
+        
+class MerchantNotFoundException(PesaPlanException):
+    def __init__(self, detail: str = "Merchant not found"):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=detail,
+            error_code="MERCHANT_NOT_FOUND"
+        )

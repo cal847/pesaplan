@@ -10,6 +10,7 @@ from app.models import Merchant
 from app.schemas.merchant import MerchantSpendingResponse, TopMerchantResponse
 from app.models.transaction import Transaction, TransactionType
 from app.models.category import Category
+from app.core.exceptions import MerchantNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,41 @@ class MerchantService:
         ).first()
         
         if not merchant:
-            raise ResourceWarning(f"Merchant {merchant_id} not found")
+            raise MerchantNotFoundException(f"Merchant {merchant_id} not found")
         
         return merchant
+    
+    def get_merchants(
+        self,
+        user_id: UUID,
+        search: Optional[str] = None,
+        category_name: Optional[str] = None,
+    ) -> List[Merchant]:
+        """
+        Gets all the merchants fora certain user.
+        Optionally filters by name and/or category
+        """
+        query = self.db.query(Merchant).filter(
+            Merchant.user_id == user_id
+        )      
+        
+        if search:
+            query = query.filter(
+                Merchant.merchant_name.ilike(f"%{search.upper()}%")
+            )
+        
+        if category_name:
+            category = self.db.query(Category).filter(
+                Category.name.ilike(category_name),
+                Category.user_id == user_id
+            ).first()
+            
+            if category:
+                query = query.filter(Merchant.category_id == category.category_id)
+            else:
+                return []
+            
+        return query.order_by(Merchant.merchant_name).all()
     
     def get_or_create(self, user_id: UUID, merchant_name: str) -> Merchant:
         """
@@ -59,15 +92,30 @@ class MerchantService:
         ).first()
         
         if not merchant:
-            raise ValueError("Merchant not found")
+            raise MerchantNotFoundException("Merchant not found")
         
-        merchant.category = category_id
-        self.db.flush()
+        merchant.category_id = category_id
         
-        logger.info("merchant_categorized user=%s merchant=%s category=%s", 
-            user_id, merchant.merchant_name_normalized, category_id)
+        # Backfill existing transactions
+        updated = self.db.query(Transaction).filter(
+            Transaction.merchant_id == merchant_id,
+            Transaction.user_id == user_id
+        ).update({"category_id": category_id})
+        
+        self.db.commit()
+        self.db.refresh(merchant)
+        
+        logger.info(
+            "merchant_categorized",
+            extra={
+                "user_id": str(user_id),
+                "merchant": merchant.merchant_name,
+                "category_id": str(category_id) if category_id else None,
+                "transactions_updated": updated,
+            }
+        )
         return merchant
-    
+        
     def get_merchant_spending(
         self,
         merchant_id: UUID,
@@ -110,6 +158,7 @@ class MerchantService:
             category_id=merchant.category_id,
             category_name=category_name,
             total_amount=Decimal(str(result.total_amount)),
+            transaction_count=result.transaction_count,
             period_start=start_date,
             period_end=end_date
         )

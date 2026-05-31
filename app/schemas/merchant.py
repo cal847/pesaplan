@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional 
 from uuid import UUID
 from datetime import datetime
@@ -6,7 +6,7 @@ from decimal import Decimal
 
 class MerchantCreate(BaseModel):
     """Schema for creating merchants"""
-    merchant_name: str = Field(..., min_length=1, max_length=255)
+    merchant_name: str = Field(min_length=1, max_length=255)
     category_id: Optional[UUID] = None
     
 class MerchantResponse(BaseModel):
@@ -18,11 +18,12 @@ class MerchantResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     
+    model_config = ConfigDict(from_attributes=True)
+    
 class MerchantUpdate(BaseModel):
     """Schema for merchant update"""
-    merchant_name: Optional[str] = Field(..., min_length=1, max_length=255)
-    category_id: UUID
-    
+    merchant_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    category_id: Optional[UUID] = None    
 class MerchantSpendingResponse(BaseModel):
     """Schema for per merchant spending"""
     merchant_id: UUID
@@ -30,21 +31,26 @@ class MerchantSpendingResponse(BaseModel):
     category_id: Optional[UUID] = None
     category_name: Optional[str] = None
     total_amount: Decimal
+    transaction_count: int
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
 
 class TopMerchantResponse(BaseModel):
     """Schema for top merchants by spending"""
     merchant_id: UUID
     merchant_name: str
     total_amount: Decimal
+    transaction_count: int
     percentage_of_total: float
     
-class MergeMerchantsRequest(BaseModel):
-    """Schema for merging duplicate merchants."""
-    source_merchant_id: UUID
-    target_merchant_id: UUID
+    model_config = ConfigDict(from_attributes=True)
 
+# class MergeMerchantsRequest(BaseModel):
+#     """Schema for merging duplicate merchants."""
+#     source_merchant_id: UUID
+#     target_merchant_id: UUID
 class CategorizeMerchantRequest(BaseModel):
     """Schema for categorizing a merchant."""
     category_id: Optional[UUID] = None
