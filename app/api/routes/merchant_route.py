@@ -40,7 +40,7 @@ def get_merchants(
 
 @router.get(
     "/top_merchants",
-    response_model=TopMerchantResponse,
+    response_model=list[TopMerchantResponse],
     status_code=status.HTTP_200_OK,
 )
 def get_top_merchants(
@@ -60,6 +60,7 @@ def get_top_merchants(
         end_date=end_date,
         limit=limit,
     )
+    
 @router.get(
     "/{merchant_id}/spending",
     response_model=MerchantSpendingResponse,
