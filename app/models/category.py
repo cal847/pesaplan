@@ -35,6 +35,7 @@ class Category(Base):
     children = relationship("Category", back_populates="parent")
     transactions = relationship("Transaction", back_populates="category")
     budgets = relationship("Budget", back_populates="category")
+    merchants = relationship("Merchant", back_populates="category")
     
     # Indexes for performance
     __table_args__ = (

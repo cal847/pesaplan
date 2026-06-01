@@ -48,7 +48,7 @@ class User(Base):
     transactions = relationship("Transaction", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
     goals = relationship("Goal", back_populates="user")
-    
+    merchants = relationship("Merchant", back_populates="user")
     # Index for faster lookups
     __table_args__ = (
         Index('ix_users_oauth', 'oauth_provider', 'oauth_id'),

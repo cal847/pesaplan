@@ -211,3 +211,17 @@ def test_child_category(db_session, test_user, test_category) -> Category:
     db_session.commit()
     db_session.refresh(category)
     return category
+
+@pytest.fixture(scope="function")
+def test_merchant(db_session, test_user) -> Merchant:
+    """Auto-created merchant for testing"""
+    merchant = Merchant(
+        merchant_id=uuid.uuid4(),
+        user_id=test_user.user_id,
+        merchant_name="NAIVAS SUPERMARKET",
+        category_id=None,
+    )
+    db_session.add(merchant)
+    db_session.commit()
+    db_session.refresh(merchant)
+    return merchant
