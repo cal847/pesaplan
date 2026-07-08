@@ -9,6 +9,9 @@ from sqlalchemy.sql import func
 from app.database import Base
 import uuid
 import enum
+from typing import Optional
+
+from app.models.merchant import Merchant
 
 class TransactionType(str, enum.Enum):
     """Enum for transaction types"""
@@ -51,6 +54,10 @@ class Transaction(Base):
         Index('ix_transactions_type', 'type'),
         Index('ix_transactions_code', 'transaction_code')
     )
+
+    @property
+    def merchant_name(self) -> Optional[str]:
+        return self.merchant.merchant_name if self.merchant else None
     
     def __repr__(self) -> str:
         return f"<Transaction {self.amount} {self.type} (user={self.user_id})>"

@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from httpx import AsyncClient
 from datetime import datetime, timedelta, timezone
 import uuid
+from decimal import Decimal
 from unittest.mock import MagicMock   
 import os
 from typing import Generator, AsyncGenerator 
@@ -41,7 +42,7 @@ TestingSessionLocal = sessionmaker(
 #     """
 #     assert settings.TESTING == True, "TESTING environment variable not set!"
 #     assert "test.db" in settings.DATABASE_URL, "Test Database is not being used!"
-#     print(f"\n✅ Running tests in TEST mode with DB: {settings.DATABASE_URL}")
+#     print(f"\nRunning tests in TEST mode with DB: {settings.DATABASE_URL}")
     
 @pytest.fixture(scope="session")
 def test_db() -> Generator[Engine, None, None]:
@@ -225,3 +226,80 @@ def test_merchant(db_session, test_user) -> Merchant:
     db_session.commit()
     db_session.refresh(merchant)
     return merchant
+
+
+@pytest.fixture
+def test_transaction(db_session, test_user, test_category, test_merchant) -> Transaction:
+    """Creates a standard expense transaction for testing"""
+    transaction = Transaction(
+        transaction_id=uuid.uuid4(),
+        user_id=test_user.user_id,
+        category_id=test_category.category_id,
+        merchant_id=test_merchant.merchant_id,
+        amount=Decimal('150.00'),
+        type=TransactionType.EXPENSE,
+        transaction_date=datetime.now(timezone.utc),
+    )
+    db_session.add(transaction)
+    db_session.commit()
+    db_session.refresh(transaction)
+    return transaction
+
+@pytest.fixture
+def test_income_transaction(db_session, test_user) -> Transaction:
+    """Creates an income transaction for testing"""
+    transaction = Transaction(
+        transaction_id=uuid.uuid4(),
+        user_id=test_user.user_id,
+        amount=Decimal('5000.00'),
+        type=TransactionType.INCOME,
+        transaction_date=datetime.now(timezone.utc),
+    )
+    db_session.add(transaction)
+    db_session.commit()
+    db_session.refresh(transaction)
+    return transaction
+
+@pytest.fixture
+def test_upcoming_bill(db_session, test_user, test_category) -> Budget:
+    """Creates a pending bill due in 5 days"""
+    bill = Budget(
+        budget_id=uuid.uuid4(),
+        user_id=test_user.user_id,
+        category_id=test_category.category_id,
+        amount=Decimal('1000.00'),
+        period=BudgetPeriod.MONTHLY,
+        start_date=datetime.now(timezone.utc) - timedelta(days=5),
+        end_date=datetime.now(timezone.utc) + timedelta(days=25),
+        is_bill=True,
+        bill_name="Test Internet Bill",
+        due_date=datetime.now(timezone.utc) + timedelta(days=5),
+        recurrence=BillRecurrence.MONTHLY,
+        bill_status=BillStatus.PENDING
+    )
+    db_session.add(bill)
+    db_session.commit()
+    db_session.refresh(bill)
+    return bill
+
+@pytest.fixture
+def test_overdue_bill(db_session, test_user, test_category) -> Budget:
+    """Creates an overdue bill"""
+    bill = Budget(
+        budget_id=uuid.uuid4(),
+        user_id=test_user.user_id,
+        category_id=test_category.category_id,
+        amount=Decimal('500.00'),
+        period=BudgetPeriod.MONTHLY,
+        start_date=datetime.now(timezone.utc) - timedelta(days=30),
+        end_date=datetime.now(timezone.utc),
+        is_bill=True,
+        bill_name="Overdue Rent",
+        due_date=datetime.now(timezone.utc) - timedelta(days=2), # 2 days ago
+        recurrence=BillRecurrence.MONTHLY,
+        bill_status=BillStatus.PENDING
+    )
+    db_session.add(bill)
+    db_session.commit()
+    db_session.refresh(bill)
+    return bill
