@@ -1,7 +1,5 @@
 """
 Transaction Endpoints Integration Tests
-Uses the FastAPI TestClient and real SQLite DB via conftest.py fixtures.
-Run with: pytest tests/test_transaction_endpoints.py -v
 """
 import pytest
 from fastapi import status
@@ -10,7 +8,6 @@ from decimal import Decimal
 
 from app.models.transaction import Transaction, TransactionType
 
-# Adjust this prefix if your settings.APP_VERSION is different (e.g., "v1")
 BASE_URL = "/api/v1/transactions"
 
 class TestTransactionEndpoints:
@@ -30,14 +27,67 @@ class TestTransactionEndpoints:
         db_session.commit()
         
         response = client.get(BASE_URL, headers=auth_headers)
+        data = response.json()
         assert response.status_code == status.HTTP_200_OK
         
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
-        # Pydantic serializes Decimal to string in JSON
-        assert data[0]["amount"] == "150.00" 
+        assert "items" in data
+        assert "total" in data
+        assert "page" in data
+        assert "limit" in data
         
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) == 1
+        assert data["items"][0]["amount"] == str(tx.amount) 
+        assert data["total"] == 1
+    
+    def test_get_transactions_pagination(self, client, auth_headers, test_user, db_session):
+        """Tests fetching all transactions with pagination"""
+        for i in range(25):
+            tx = Transaction(
+                user_id=test_user.user_id, amount=Decimal(f'{i+1}.00'), 
+                type=TransactionType.EXPENSE, transaction_date=datetime.now(timezone.utc)
+            )
+            db_session.add(tx)
+        db_session.commit()
+
+        # Fetch page 1, limit 10
+        response = client.get(f"{BASE_URL}?page=1&limit=10", headers=auth_headers)
+        data = response.json()
+        assert len(data["items"]) == 10
+        assert data["total"] == 25
+        assert data["page"] == 1
+
+        # Fetch page 3, limit 10 (Should only have 5 items left)
+        response = client.get(f"{BASE_URL}?page=3&limit=10", headers=auth_headers)
+        data = response.json()
+        assert len(data["items"]) == 5
+        assert data["page"] == 3
+
+    def test_get_transactions_filter_by_type(self, client, auth_headers, test_user, db_session):
+        """Tests fetching all transactions with filters"""
+        tx_expense = Transaction(
+            user_id=test_user.user_id, amount=Decimal('100.00'), 
+            type=TransactionType.EXPENSE, transaction_date=datetime.now(timezone.utc)
+        )
+        tx_income = Transaction(
+            user_id=test_user.user_id, amount=Decimal('500.00'), 
+            type=TransactionType.INCOME, transaction_date=datetime.now(timezone.utc)
+        )
+        db_session.add_all([tx_expense, tx_income])
+        db_session.commit()
+
+        # Filter by expense
+        response = client.get(f"{BASE_URL}?type=expense", headers=auth_headers)
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["type"] == "expense"
+
+        # Filter by income
+        response = client.get(f"{BASE_URL}?type=income", headers=auth_headers)
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["type"] == "income"
+
     def test_get_transactions_unauthenticated(self, client):
         """Tests that accessing the endpoint without a JWT fails"""
         response = client.get(BASE_URL)
@@ -47,7 +97,10 @@ class TestTransactionEndpoints:
         """Tests fetching transactions when the user has none"""
         response = client.get(BASE_URL, headers=auth_headers)
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == []
+        
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
 
     # ─── POST /transactions ───────────────────────────────────────────────────
     

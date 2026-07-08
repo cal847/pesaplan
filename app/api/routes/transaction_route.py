@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Query
 from sqlalchemy.orm import Session
 from uuid import UUID
 import logging
@@ -6,7 +6,12 @@ from datetime import datetime, timezone
 
 from app.database import get_db
 from app.services.transaction_service import TransactionService
-from app.schemas.transaction import TransactionCreate, TransactionResponse
+from app.schemas.transaction import (
+    TransactionCreate,
+    TransactionResponse,
+    TransactionFilter,
+    PaginatedTransactionResponse
+)
 from app.models.user import User
 from app.api.dependencies.auth import get_current_user
 
@@ -65,7 +70,7 @@ def create_transaction(
                 "user_id": str(current_user.user_id),
                 "payload": data.model_dump()
             },
-            exc_info=True  # This logs the full traceback
+            exc_info=True
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -73,16 +78,37 @@ def create_transaction(
         )
 
 
-@router.get("", response_model=list[TransactionResponse])
+@router.get("", response_model=PaginatedTransactionResponse)
 def get_transactions(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    filters: TransactionFilter = Depends(),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get all transactions for the current user."""
     try:
         service = TransactionService(db)
-        return service.get_all_transactions(current_user.user_id)
+        skip = (page - 1) * limit
 
+        items = service.get_all_transactions(
+            user_id=current_user.user_id,
+            skip=skip,
+            limit=limit,
+            filters=filters
+        )
+        # Fetch the total count for pagination metadata
+        total = service.count_transactions(
+            user_id=current_user.user_id,
+            filters=filters
+        )
+        
+        return PaginatedTransactionResponse(
+            items=items,
+            total=total,
+            page=page,
+            limit=limit
+        )
     except Exception as e:
         logger.error(
             "get_transactions_failed",

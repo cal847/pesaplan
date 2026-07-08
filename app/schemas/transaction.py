@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
@@ -29,3 +29,9 @@ class TransactionFilter(BaseModel):
     max_amount: Optional[Decimal] = Field(default=None, gt=0)
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+
+class PaginatedTransactionResponse(BaseModel):
+    items: List[TransactionResponse]
+    total: int
+    page: int
+    limit: int
