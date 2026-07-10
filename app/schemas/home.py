@@ -5,18 +5,18 @@ from datetime import datetime
 from uuid import UUID
 
 from app.models.transaction import TransactionType
-from app.models.budget import BillStatus
+from app.models.budget import BillStatus, BillRecurrence
 
 class BalanceSummary(BaseModel):
-    income: Decimal
-    expense: Decimal
+    total_income: Decimal
+    total_expenses: Decimal
     net_balance: Decimal
-    period: datetime
+    period: str
 
 class RecentTransactions(BaseModel):
     transaction_id: UUID
-    transaction_code: str
-    merchant_name: str
+    transaction_code: Optional[str] = None
+    merchant_name: Optional[str] = None
     amount: Decimal
     type: TransactionType
     transaction_date: datetime

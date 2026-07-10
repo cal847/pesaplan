@@ -79,7 +79,6 @@ class HomeService:
                 due_date=bill.due_date,
                 bill_status=bill.bill_status,
                 days_remaining=bill.days_remaining,
-                recurrence=bill.recurrence,
             )
             for bill in bills
         ]
