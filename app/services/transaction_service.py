@@ -2,10 +2,18 @@
 import logging
 from sqlalchemy.orm import Session
 from typing import Optional
+from uuid import UUID
+from datetime import datetime, timezone
 
-from app.models.transaction import Transaction, TransactionType
-from app.schemas.sms import SMSParseResult, ParsedTransactionType
+from app.models.transaction import Transaction
+from app.models.merchant import Merchant
+from app.schemas.sms import SMSParseResult
 from app.services.merchant_service import MerchantService
+from app.schemas.transaction import (
+    TransactionCreate,
+    TransactionResponse,
+    TransactionFilter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +37,75 @@ class TransactionService:
             return  self.find_by_code(parsed.transaction_code) is not None
         
         return False
+    
+    #  Handles pagination and dynamic filtering
+    def get_all_transactions(
+        self, 
+        user_id: UUID, 
+        skip: int = 0, 
+        limit: int = 20, 
+        filters: Optional[TransactionFilter] = None
+    ) -> list[Transaction]:
+        
+        # Base query: Only get transactions for this user
+        query = self.db.query(Transaction).filter(Transaction.user_id == user_id)
+        
+        # Dynamically apply filters if they were provided
+        if filters:
+            if filters.start_date:
+                query = query.filter(Transaction.transaction_date >= filters.start_date)
+            if filters.end_date:
+                query = query.filter(Transaction.transaction_date <= filters.end_date)
+            if filters.type:
+                query = query.filter(Transaction.type == filters.type)
+            if filters.min_amount is not None:
+                query = query.filter(Transaction.amount >= filters.min_amount)
+            if filters.max_amount is not None:
+                query = query.filter(Transaction.amount <= filters.max_amount)
+            if filters.merchant_name:
+                # Join with the Merchant table to filter by name (case-insensitive partial match)
+                query = query.join(Merchant).filter(
+                    Merchant.merchant_name.ilike(f"%{filters.merchant_name}%")
+                )
+                
+        return (
+            query.order_by(Transaction.transaction_date.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+    
+     # Counts total records matching the filters (for pagination math)
+    def count_transactions(self, user_id: UUID, filters: Optional[TransactionFilter] = None) -> int:
+        query = self.db.query(Transaction).filter(Transaction.user_id == user_id)
+        
+        if filters:
+            if filters.start_date:
+                query = query.filter(Transaction.transaction_date >= filters.start_date)
+            if filters.end_date:
+                query = query.filter(Transaction.transaction_date <= filters.end_date)
+            if filters.type:
+                query = query.filter(Transaction.type == filters.type)
+            if filters.min_amount is not None:
+                query = query.filter(Transaction.amount >= filters.min_amount)
+            if filters.max_amount is not None:
+                query = query.filter(Transaction.amount <= filters.max_amount)
+            if filters.merchant_name:
+                query = query.join(Merchant).filter(
+                    Merchant.merchant_name.ilike(f"%{filters.merchant_name}%")
+                )
+                
+        return query.count()
+    
+    def get_by_id(self, user_id: UUID, transaction_id: UUID) -> Optional[Transaction]:
+        return (
+            self.db.query(Transaction)
+            .filter(
+                Transaction.transaction_id == transaction_id,
+                Transaction.user_id == user_id
+            )
+            .first()
+        )
     
     def create_from_sms(self, parsed: SMSParseResult, user_id: str) -> Optional[Transaction]:
         """
@@ -60,7 +137,7 @@ class TransactionService:
             type=parsed.transaction_type,
             merchant_id=merchant_id,
             category_id=category_id,
-            paybill_account_number=getattr(parsed, "account_number", None),
+            # paybill_account_number=getattr(parsed, "account_number", None),
             transaction_date=parsed.transaction_date,
         )
         
@@ -78,3 +155,39 @@ class TransactionService:
             }
         )
         return transaction
+    
+    def create_manual(self, data: TransactionCreate, user_id: UUID) -> Transaction:
+        """Users manually upload transactions"""
+        merchant_id = None
+
+        if data.merchant_name:
+            merchant = self.merchant_service.get_or_create(
+                user_id, data.merchant_name
+            )
+            merchant_id = merchant.merchant_id
+
+        transaction = Transaction(
+            user_id=user_id,
+            amount=data.amount,
+            type=data.type,
+            merchant_id=merchant_id,
+            category_id=data.category_id,
+            # paybill_account_number=data.paybill_account_number,
+            transaction_date=data.transaction_date or datetime.now(timezone.utc),
+        )
+
+        self.db.add(transaction)
+        self.db.commit()
+        self.db.refresh(transaction)
+        return transaction
+    
+    def get_transactions(
+            self,
+            user_id: UUID,
+    ) -> TransactionResponse:
+        try:
+            return self.get_all_transactions(user_id)
+
+        except Exception as e:
+            logger.error("Failed to fetch transactions", extra={"error": str(e)})
+            raise ValueError (f"failed to fetch transactions: {str(e)}")

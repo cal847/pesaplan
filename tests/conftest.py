@@ -41,7 +41,7 @@ TestingSessionLocal = sessionmaker(
 #     """
 #     assert settings.TESTING == True, "TESTING environment variable not set!"
 #     assert "test.db" in settings.DATABASE_URL, "Test Database is not being used!"
-#     print(f"\n✅ Running tests in TEST mode with DB: {settings.DATABASE_URL}")
+#     print(f"\nRunning tests in TEST mode with DB: {settings.DATABASE_URL}")
     
 @pytest.fixture(scope="session")
 def test_db() -> Generator[Engine, None, None]:
@@ -225,3 +225,4 @@ def test_merchant(db_session, test_user) -> Merchant:
     db_session.commit()
     db_session.refresh(merchant)
     return merchant
+
