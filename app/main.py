@@ -11,6 +11,7 @@ from app.api.routes import sms_route
 from app.api.routes import merchant_route
 from app.api.routes import transaction_route
 from app.api.routes import home_router
+from app.api.routes import goal_route
 
 # Creates all tables
 Base.metadata.create_all(bind=engine)
@@ -62,3 +63,4 @@ app.include_router(sms_route.router, prefix=f"/api/{settings.APP_VERSION}", tags
 app.include_router(merchant_route.router, prefix=f"/api/{settings.APP_VERSION}", tags=["Merchants"])
 app.include_router(transaction_route.router, prefix=f"/api/{settings.APP_VERSION}", tags=["Transactions"])
 app.include_router(home_router.router, prefix=f"/api/{settings.APP_VERSION}", tags=["Home"])
+app.include_router(goal_route.router, prefix=f"/api/{settings.APP_VERSION}", tags=["Goals"])
