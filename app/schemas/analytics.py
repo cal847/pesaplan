@@ -37,6 +37,12 @@ class TrendDataPoint(BaseModel):
     expenses: Decimal
     net: Decimal
 
+class SavingsRateResponse(BaseModel):
+    period: str
+    total_income: Decimal
+    total_savings: Decimal
+    savings_rate: float
+
 class IncomeExpenseTrendResponse(BaseModel):
     period: str
     data_points: List[TrendDataPoint]
