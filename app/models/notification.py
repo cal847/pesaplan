@@ -56,7 +56,6 @@ class Notification(Base):
         Index('ix_notifications_user_read', 'user_id', 'is_read'),
         Index('ix_notifications_type', 'type'),
         Index('ix_notifications_created', 'created_at'),
-        Index('ix_notifications_expiry', 'expires_at'),
     )
     
     def mark_as_read(self) -> None:

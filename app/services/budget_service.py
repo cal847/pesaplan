@@ -12,6 +12,7 @@ from typing import List, Optional
 import logging
 
 from app.models.budget import Budget, BudgetPeriod, BillStatus
+from app.models.notification import Notification
 from app.models.user import User
 from app.models.transaction import Transaction, TransactionType
 from app.models.category import Category
@@ -26,16 +27,20 @@ from app.core.exceptions import (
     BudgetAlreadyExistsException,
     CategoryNotFoundException
 )
+from app.services.notification_service import NotificationService, NotificationPriority, NotificationType
 
 logger = logging.getLogger(__name__)
 
 class BudgetService:
     """Service for budget management"""
-    @staticmethod
-    def create_budget(db: Session, user_id: UUID, data: BudgetCreate) -> BudgetResponse:
+    def __init__(self, db: Session):
+        self.db = db
+        self.notification_service = NotificationService(db)
+
+    def create_budget(self,  user_id: UUID, data: BudgetCreate) -> BudgetResponse:
         """Create a new budget or bill."""
         # Verify category exists
-        category = db.query(Category).filter(
+        category = self.db.query(Category).filter(
             Category.category_id == data.category_id,
             Category.user_id == user_id
         ).first()
@@ -64,7 +69,7 @@ class BudgetService:
                 end_date = start.replace(year=start.year + 1) - timedelta(microseconds=1)
         
         # Check for overlapping budget with same category
-        existing = db.query(Budget).filter(
+        existing = self.db.query(Budget).filter(
             Budget.user_id == user_id,
             Budget.category_id == data.category_id,
             Budget.period == data.period,
@@ -91,16 +96,17 @@ class BudgetService:
             bill_status=BillStatus.PENDING if data.is_bill else None,
         )
         
-        db.add(budget)
-        db.commit()
-        db.refresh(budget)
+        self.db.add(budget)
+        self.db.commit()
+        self.db.refresh(budget)
         
         logger.info(f"Created {'bill' if data.is_bill else 'budget'} for user {user_id}")
         return BudgetResponse.model_validate(budget)
     
-    @staticmethod
+    
     def get_budgets(
-        db: Session,
+        self,
+        
         user_id: UUID,
         period: Optional[BudgetPeriod] = None,
         start_date: Optional[datetime] = None,
@@ -109,7 +115,7 @@ class BudgetService:
         is_bill: Optional[bool] = None
     ) -> List[BudgetResponse]:
         """Get flat list of budgets with filters."""
-        query = db.query(Budget).filter(Budget.user_id == user_id)
+        query = self.db.query(Budget).filter(Budget.user_id == user_id)
         
         if period:
             query = query.filter(Budget.period == period)
@@ -128,15 +134,16 @@ class BudgetService:
         
         return [BudgetResponse.model_validate(b) for b in query.order_by(Budget.created_at.desc()).all()]
     
-    @staticmethod
+    
     def update_budget(
-        db: Session,
+        self,
+        
         user_id: UUID,
         budget_id: UUID,
         data: BudgetUpdate
     ) -> Budget:
         """Update a budget or bill."""
-        budget = get_budget_or_raise(db, user_id, budget_id)
+        budget = get_budget_or_raise(self.db, user_id, budget_id)
                 
         # Update fields
         update_data = data.model_dump(exclude_unset=True)
@@ -154,33 +161,33 @@ class BudgetService:
         
         budget.updated_at = datetime.now(timezone.utc)
         
-        db.commit()
-        db.refresh(budget)
+        self.db.commit()
+        self.db.refresh(budget)
         
         logger.info(f"Updated {'bill' if budget.is_bill else 'budget'} {budget_id}")
         return budget
     
-    @staticmethod
-    def delete_budget(db: Session, user_id: UUID, budget_id: UUID) -> None:
+    
+    def delete_budget(self,  user_id: UUID, budget_id: UUID) -> None:
         """Delete a budget."""
-        budget = get_budget_or_raise(db, user_id, budget_id)
+        budget = get_budget_or_raise(self.db, user_id, budget_id)
                 
-        db.delete(budget)
-        db.commit()
+        self.db.delete(budget)
+        self.db.commit()
         
         logger.info(f"Deleted budget {budget_id}")
         
-    @staticmethod
+    
     def calculate_budget_progress(
-        db: Session, user_id: UUID, period
+        self,  user_id: UUID, period
     ) -> BudgetProgressResponse:
         """Calculate spending progress for a single budget."""
-        user = get_user_by_id(db, user_id)
+        user = get_user_by_id(self.db, user_id)
         
         start_date, end_date = get_period_dates(period, datetime.now(timezone.utc))
 
-        spent = BudgetService._calculate_total_period_spending(
-            db, user_id, start_date, end_date
+        spent = self._calculate_total_period_spending(
+            user_id, start_date, end_date
         )
         
         spending_limit = user.spending_limit or Decimal("0.00")
@@ -204,9 +211,9 @@ class BudgetService:
             status=status,
         )
     
-    # @staticmethod
+    # 
     # def calculate_budget_vs_actual(
-    #     db: Session, user_id: UUID, period: BudgetPeriod
+    #      user_id: UUID, period: BudgetPeriod
     # ) -> list[BudgetProgressResponse]:
     #     """Compare all budgets against actual spending for a period."""
     #     budgets = db.query(Budget).filter(
@@ -219,49 +226,97 @@ class BudgetService:
     #         for b in budgets
     #     ]
     
-    @staticmethod
-    def get_budget_alerts(db: Session, user_id: UUID, period) -> list[BudgetAlertResponse]:
-        """Return all active alerts: threshold breaches and bill reminders."""
-        alerts = []
+    def check_or_create_budget_notification(self, user_id: UUID):
+        """Checks for alerts and creates the notification if none exists"""
+        user = get_user_by_id(self.db, user_id)
         
-        progress = BudgetService.calculate_budget_progress(db, user_id, period)
-        if progress.status in ("warning", "exceeded"):
-            alerts.append(BudgetAlertResponse(
-                message=(
-                    "You have exceeded your budget for this period"
-                    if progress.status == "exceeded"
-                    else f"You have used {progress.percentage}% of your budget"
-                ),
-                alert_type="threshold_exceeded",
-            ))
-                        
-        # For bills alerts
-        budgets = db.query(Budget).filter(Budget.user_id == user_id).all()
+        # No spending limit set = no alerts
+        if user.spending_limit is None or user.spending_limit <= 0:
+            return 0
+        
 
-        for budget in budgets:
-            if budget.is_bill:
-                days = budget.days_remaining
-                if days is not None and days < 0 and budget.bill_status != BillStatus.PAID:
-                    alerts.append(BudgetAlertResponse(
-                        budget_id=budget.budget_id,
-                        bill_name=budget.bill_name,
-                        category_id=budget.category_id,
-                        message=f"{budget.bill_name} is overdue by {abs(days)} day(s)",
-                        alert_type="bill_overdue",
-                    ))
-                elif days is not None and 0 <= days <= 7 and budget.bill_status != BillStatus.PAID:
-                    alerts.append(BudgetAlertResponse(
-                        budget_id=budget.budget_id,
-                        bill_name=budget.bill_name,
-                        category_id=budget.category_id,
-                        message=f"{budget.bill_name} is due in {days} day(s)",
-                        alert_type="bill_due",
-                    ))
-        return alerts
+        now = datetime.now(timezone.utc)
+        notif_service = NotificationService(self.db)
+        alerts_created = 0
+
+        period = user.spending_period or BudgetPeriod.MONTHLY
+
+        start_date, end_date = get_period_dates(period, now)
+
+        # Calculate spent
+        spent = self.db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+            Transaction.user_id == user_id,
+            Transaction.type == TransactionType.EXPENSE,
+            Transaction.transaction_date >= start_date,
+            Transaction.transaction_date <= end_date
+        ).scalar()
+        
+        percentage = (spent / user.spending_limit * 100)
+        user_threshold = user.threshold or 80  
+
+        if percentage >= 100:
+            if not self._alert_already_sent(self.db, user_id, "exceeded"):
+                notif_service.create_notification(
+                    user_id=user_id,
+                    title="Budget Exceeded!",
+                    message=f"You've spent {percentage:.1f}% of your budget ({spent}/{user.spending_limit}).",
+                    notification_type=NotificationType.BUDGET_ALERT,
+                    priority=NotificationPriority.URGENT,
+                    data={"threshold": "exceeded", "percentage": percentage, "spent": str(spent)}
+                )
+                alerts_created += 1
+        # ─── 80% Threshold (Warning) ───────────────────────────────────────────
+        elif percentage >= 80:
+            if not self._alert_already_sent(self.db, user_id, "warning"):
+                notif_service.create_notification(
+                    user_id=user_id,
+                    title="Budget Warning",
+                    message=f"You've reached your set budget threshold.",
+                    notification_type=NotificationType.BUDGET_ALERT,
+                    priority=NotificationPriority.NORMAL,
+                    data={"threshold": "warning", "percentage": percentage, "spent": str(spent)}
+                )
+                alerts_created += 1
+        
+        return alerts_created
     
-    @staticmethod
+    def _alert_already_sent(self, user_id: UUID, threshold: str):
+            """Prevents duplicate alerts by checking if it was already sent"""
+            title = "Budget Exceeded!" if threshold == "exceeded" else "Budget Warning"
+
+            return self.db.query(Notification).filter(
+                Notification.user_id == user_id,
+                Notification.type == NotificationType.BUDGET_ALERT,
+                Notification.title == title, 
+                Notification.data['threshold'].astext == threshold,
+            ).first() is not None
+    
+    def get_budget_alerts(self,  user_id: UUID) -> list[BudgetAlertResponse]:
+        """Return all active alertsand notifications"""
+        notifications = self.db.query(Notification).filter(
+            Notification.user_id == user_id,
+            Notification.type.in_([NotificationType.BUDGET_ALERT, NotificationType.BILL_REMINDER]),
+            Notification.is_read == False
+        ).order_by(Notification.created_at.desc()).all()
+        
+        alerts = []
+        for notif in notifications:
+            # Extract data from the JSON column safely
+            data = notif.data or {}
+            
+            alerts.append(BudgetAlertResponse(
+                budget_id=data.get('budget_id'),
+                bill_name=data.get('bill_name'),
+                category_id=None, # Can be added to data dict if needed
+                message=notif.message,
+                alert_type=notif.type.value,
+                priority=notif.priority.value if notif.priority else "normal"
+            ))
+        
+        return alerts    
+    
     def get_budget_summary(
-        db: Session, user_id: UUID, period: BudgetPeriod
+        self,  user_id: UUID, period: BudgetPeriod
     ) -> BudgetSummaryResponse:
         """
         Return full dashboard summary grouped by category hierarchy.
@@ -269,20 +324,20 @@ class BudgetService:
         Chips show planned budget amounts only — no per-category progress.
         """
         # Fetch user
-        user = get_user_by_id(db, user_id)
+        user = get_user_by_id(self.db, user_id)
 
         # Calculate global progress once — not per chip
-        progress = BudgetService.calculate_budget_progress(db, user_id, period)
+        progress = self.calculate_budget_progress(user_id, period)
         total_spent = progress.spent
 
         # Fetch all budgets for this period
-        budgets = db.query(Budget).filter(
+        budgets = self.db.query(Budget).filter(
             Budget.user_id == user_id,
             Budget.period == period,
         ).all()
 
         # Fetch parent categories (group headers) ordered by display_order
-        parent_categories = db.query(Category).filter(
+        parent_categories = self.db.query(Category).filter(
             Category.user_id == user_id,
             Category.parent_id == None,
             Category.is_active == True,
@@ -295,7 +350,7 @@ class BudgetService:
         total_budgeted = Decimal("0.00")
 
         for parent in parent_categories:
-            child_categories = db.query(Category).filter(
+            child_categories = self.db.query(Category).filter(
                 Category.parent_id == parent.category_id,
                 Category.is_active == True,
             ).order_by(Category.display_order).all()
@@ -336,30 +391,30 @@ class BudgetService:
         
     # ─── Spending Limit ──────────────────────────────────────────────────────
 
-    @staticmethod
-    def get_spending_limit(db: Session, user_id: UUID) -> SpendingLimitResponse:
+    
+    def get_spending_limit(self,  user_id: UUID) -> SpendingLimitResponse:
         """Return the user's global spending limit."""
-        user = get_user_by_id(db, user_id)
+        user = get_user_by_id(self.db, user_id)
         return SpendingLimitResponse(spending_limit=user.spending_limit)
 
-    @staticmethod
+    
     def update_spending_limit(
-        db: Session, user_id: UUID, data: SpendingLimitUpdate
+        self,  user_id: UUID, data: SpendingLimitUpdate
     ) -> SpendingLimitResponse:
         """Update the user's global spending limit."""
-        user = get_user_by_id(db, user_id)
+        user = get_user_by_id(self.db, user_id)
 
         user.spending_limit = data.spending_limit
         user.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(user)
+        self.db.commit()
+        self.db.refresh(user)
 
         logger.info(f"Spending limit updated for user {user_id}")
         return SpendingLimitResponse(spending_limit=user.spending_limit)
 
-    @staticmethod
+    
     def _calculate_total_period_spending(
-        db: Session,
+        self,        
         user_id: UUID,
         start_date: datetime,
         end_date: datetime,
@@ -367,7 +422,7 @@ class BudgetService:
         """
         Sum all expense transactions for a user within a date range.
         """
-        result = db.query(
+        result = self.db.query(
             func.coalesce(func.sum(Transaction.amount), 0)
         ).filter(
             Transaction.user_id == user_id,

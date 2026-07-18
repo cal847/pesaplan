@@ -6,6 +6,8 @@ from typing import Optional
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
+
+from app.models.notification import NotificationPriority
 from app.models.budget import BudgetPeriod, BillRecurrence, BillStatus
 
 class BudgetCreate(BaseModel):
@@ -115,6 +117,7 @@ class BudgetAlertResponse(BaseModel):
     budget_id: Optional[UUID] = None
     bill_name: Optional[str] = None
     category_id: Optional[UUID] = None
+    priority: Optional[NotificationPriority] = None
     message: str
     alert_type: str
 
