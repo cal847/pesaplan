@@ -24,8 +24,8 @@ async def get_budget_summary(
     current_user: User = Depends(get_current_user)
 ):
     """Get period summary with totals and spending limit."""
-    summary = BudgetService.get_budget_summary(
-        db,
+    service = BudgetService(db)
+    summary = service.get_budget_summary(
         current_user.user_id,
         period,
     )
@@ -33,12 +33,12 @@ async def get_budget_summary(
 
 @router.get("/alerts", response_model=List[BudgetAlertResponse])
 async def get_budget_alerts(
-    period: BudgetPeriod = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get active threshold and bill alerts."""
-    return BudgetService.get_budget_alerts(db, current_user.user_id, period)
+    service = BudgetService(db)
+    return service.get_budget_alerts( current_user.user_id)
 
 @router.get("/spending-limit", response_model=SpendingLimitResponse)
 async def get_spending_limit(
@@ -46,7 +46,8 @@ async def get_spending_limit(
     current_user: User = Depends(get_current_user)
 ):
     """Get global spending limit."""
-    return BudgetService.get_spending_limit(db, current_user.user_id)
+    service = BudgetService(db)
+    return service.get_spending_limit( current_user.user_id)
 
 @router.put("/spending-limit", response_model=SpendingLimitResponse)
 async def update_spending_limit(
@@ -55,7 +56,8 @@ async def update_spending_limit(
     current_user: User = Depends(get_current_user)
 ):
     """Update global spending limit."""
-    return BudgetService.update_spending_limit(db, current_user.user_id, data)
+    service = BudgetService(db)
+    return service.update_spending_limit(current_user.user_id, data)
      
 
 @router.get("/progress", response_model=BudgetProgressResponse)
@@ -65,7 +67,8 @@ def get_budget_progress(
     current_user: User = Depends(get_current_user),
 ):
     """Global spending progress vs spending limit."""
-    return BudgetService.calculate_budget_progress(db, current_user.user_id, period)
+    service = BudgetService(db)
+    return service.calculate_budget_progress(current_user.user_id, period)
  
 @router.get("", response_model=List[BudgetResponse])
 async def get_budgets(
@@ -76,8 +79,9 @@ async def get_budgets(
     current_user: User = Depends(get_current_user)
 ):
     """Gets a flat list of budgets with optional filters"""
-    return BudgetService.get_budgets(
-        db,
+    service = BudgetService(db)
+    return service.get_budgets(
+        
         current_user.user_id,
         period=period,
         category_id=category_id,
@@ -100,7 +104,8 @@ async def create_budget(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new budget/bill"""
-    return BudgetService.create_budget(db, current_user.user_id, data)
+    service = BudgetService(db)
+    return service.create_budget( current_user.user_id, data)
     
 @router.put("/{budget_id}", response_model=BudgetResponse)
 async def update_budget(
@@ -110,7 +115,8 @@ async def update_budget(
     current_user: User = Depends(get_current_user)
 ):
     """Update a budget or bill."""
-    return BudgetService.update_budget(db, current_user.user_id, budget_id, data)
+    service = BudgetService(db)
+    return service.update_budget( current_user.user_id, budget_id, data)
     
     # Get category name
     # from app.models.category import Category
@@ -129,4 +135,15 @@ def delete_budget(
     current_user: User = Depends(get_current_user),
 ):
     """Delete a budget."""
-    BudgetService.delete_budget(db, current_user.user_id, budget_id)
+    service = BudgetService(db)
+    service.delete_budget( current_user.user_id, budget_id)
+
+@router.post("/budget-alerts", status_code=status.HTTP_200_OK)
+def check_or_create_alerts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Gets  budget-related alerts and notifications"""
+    service = BudgetService(db)
+    count = service.check_or_create_budget_notification(current_user.user_id)
+    return {"message": f"Checked budgets. Created {count} new notifications."}

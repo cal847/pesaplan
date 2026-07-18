@@ -8,10 +8,11 @@ from app.models.goals import Goal, GoalStatus
 
 class GoalBase(BaseModel):
     """Base schema for goal creation and response"""
-    title: Optional[str] = Field(..., min_length=1)
+    title: Optional[str] = Field(None, min_length=1)
     description: Optional[str] = Field(None, max_length=500)
     target_amount: Optional[Decimal] = None
     target_date: Optional[datetime] = None
+    status: Optional[GoalStatus] = None
 
 class GoalCreate(GoalBase):
     pass
@@ -20,7 +21,6 @@ class GoalResponse(GoalBase):
     goal_id: UUID
     user_id: UUID
     current_amount: Decimal
-    status: GoalStatus
     completed_date: Optional[datetime]
     created_at: datetime
     updated_at: Optional[datetime]

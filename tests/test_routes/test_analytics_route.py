@@ -55,7 +55,7 @@ class TestAnalyticsEndpoints:
         ))
         db_session.commit()
         
-        response = client.get(f"{BASE_URL}/income-expense-trend?period=monthly", headers=auth_headers)
+        response = client.get(f"{BASE_URL}/income-expense-trend", headers=auth_headers)
         assert response.status_code == status.HTTP_200_OK
         
         data = response.json()

@@ -1,22 +1,25 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, List
 import logging
 
 from app.models.goals import Goal, GoalStatus
 from app.models.transaction import TransactionType
+from app.models.notification import Notification, NotificationPriority, NotificationType
 from app.schemas.transaction import TransactionCreate
 from app.schemas.goal import GoalCreate, GoalUpdate, GoalProgressResponse
 from app.services.transaction_service import TransactionService
+from app.services.notification_service import NotificationService
 logger = logging.getLogger(__name__)
 
 class GoalService:
     def __init__(self, db: Session):
         self.db = db
         self.transaction_service = TransactionService(db)
+        self.notification_service = NotificationService(db)
 
     def _validate_unique_title(self, user_id: UUID, title: str, exclude_goal_id: Optional[UUID] = None) -> bool:
         """Check if a goal with this title already exists for the user."""
@@ -37,10 +40,47 @@ class GoalService:
         if goal.current_amount >= goal.target_amount and goal.status == GoalStatus.ACTIVE:
             goal.status = GoalStatus.COMPLETED
             goal.completed_date = datetime.now(timezone.utc)
+
             self.db.commit()
+
+            self.notification_service.create_notification(
+                user_id=goal.user_id,
+                title="Goal Achieved!!",
+                message=f"Congratulations! You have successfully reached your savings goal: '{goal.title}'.",
+                notification_type=NotificationType.GOAL_UPDATE,
+                priority=NotificationPriority.URGENT,
+                data={"goal_id": str(goal.goal_id)}
+            )
             self.db.refresh(goal)
+
         return goal        
     
+    # In GoalService or a daily checker
+    def check_goal_deadlines(self, user_id: UUID):
+        now = datetime.now(timezone.utc)
+        warning_date = now + timedelta(days=7)
+        
+        at_risk_goals = self.db.query(Goal).filter(
+            and_(
+                Goal.user_id == user_id,
+                Goal.status == GoalStatus.ACTIVE,
+                Goal.target_date <= warning_date,
+                Goal.target_date >= now,
+                Goal.current_amount < Goal.target_amount # Behind schedule
+            )
+        ).all()
+        
+        for goal in at_risk_goals:
+            days_left = (goal.target_date - now).days
+            self.notification_service.create_notification(
+                user_id=user_id,
+                title="Goal Deadline Approaching",
+                message=f"Your goal '{goal.title}' is due in {days_left} days and is only {goal.progress:.0f}% funded.",
+                notification_type=NotificationType.GOAL_UPDATE,
+                priority=NotificationPriority.NORMAL,
+                data={"goal_id": str(goal.goal_id)}
+            )
+        
     def create_goal(self, data: GoalCreate, user_id: UUID) -> Goal:
         """Create a new savings goal."""
         if not self._validate_unique_title(user_id, data.title):
@@ -78,7 +118,8 @@ class GoalService:
         return self.db.query(Goal).filter(
             and_(
                 Goal.user_id == user_id,
-                Goal.is_deleted == False
+                Goal.is_deleted == False,
+                Goal.status == GoalStatus.ACTIVE,
             )
         ).all()
     
@@ -166,7 +207,7 @@ class GoalService:
     
     def get_all_goals_progress(self, user_id: UUID) -> List[GoalProgressResponse]:
         """Get progress for all active goals."""
-        goals = self.get_goals(user_id, status=GoalStatus.ACTIVE)
+        goals = self.get_goals(user_id)
         return [
             GoalProgressResponse(
                 goal_id=g.goal_id,

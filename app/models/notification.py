@@ -6,9 +6,11 @@ Stores in-app notifications for users
 from sqlalchemy import Column, String, UUID, ForeignKey, Boolean, DateTime, Enum, JSON, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.database import Base
+from datetime import datetime, timezone
 import uuid
 import enum
+
+from app.database import Base
 
 class NotificationType(str, enum.Enum):
     """Enum for notification types."""
@@ -44,7 +46,6 @@ class Notification(Base):
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     read_at = Column(DateTime(timezone=True), nullable=True)
-    expires_at = Column(DateTime(timezone=True), nullable=True)
     
     # Relationships
     user = relationship("User", back_populates="notifications")
@@ -55,12 +56,10 @@ class Notification(Base):
         Index('ix_notifications_user_read', 'user_id', 'is_read'),
         Index('ix_notifications_type', 'type'),
         Index('ix_notifications_created', 'created_at'),
-        Index('ix_notifications_expiry', 'expires_at'),
     )
     
     def mark_as_read(self) -> None:
         """Mark notification as read."""
-        from datetime import datetime, timezone
         self.is_read = True
         self.read_at = datetime.now(timezone.utc)
     
