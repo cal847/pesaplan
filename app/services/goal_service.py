@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, List
 import logging
@@ -42,7 +42,7 @@ class GoalService:
             goal.completed_date = datetime.now(timezone.utc)
 
             self.db.commit()
-            
+
             self.notification_service.create_notification(
                 user_id=goal.user_id,
                 title="Goal Achieved!!",
@@ -55,6 +55,32 @@ class GoalService:
 
         return goal        
     
+    # In GoalService or a daily checker
+    def check_goal_deadlines(self, user_id: UUID):
+        now = datetime.now(timezone.utc)
+        warning_date = now + timedelta(days=7)
+        
+        at_risk_goals = self.db.query(Goal).filter(
+            and_(
+                Goal.user_id == user_id,
+                Goal.status == GoalStatus.ACTIVE,
+                Goal.target_date <= warning_date,
+                Goal.target_date >= now,
+                Goal.current_amount < Goal.target_amount # Behind schedule
+            )
+        ).all()
+        
+        for goal in at_risk_goals:
+            days_left = (goal.target_date - now).days
+            self.notification_service.create_notification(
+                user_id=user_id,
+                title="Goal Deadline Approaching",
+                message=f"Your goal '{goal.title}' is due in {days_left} days and is only {goal.progress:.0f}% funded.",
+                notification_type=NotificationType.GOAL_UPDATE,
+                priority=NotificationPriority.NORMAL,
+                data={"goal_id": str(goal.goal_id)}
+            )
+        
     def create_goal(self, data: GoalCreate, user_id: UUID) -> Goal:
         """Create a new savings goal."""
         if not self._validate_unique_title(user_id, data.title):
