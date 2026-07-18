@@ -139,7 +139,7 @@ def delete_budget(
     service.delete_budget( current_user.user_id, budget_id)
 
 @router.post("/budget-alerts", status_code=status.HTTP_200_OK)
-def get_alerts(
+def check_or_create_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
