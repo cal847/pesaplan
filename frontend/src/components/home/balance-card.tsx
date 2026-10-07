@@ -55,8 +55,8 @@ export function BalanceCard({ balance, received, spent }: Props) {
   return (
     <LinearGradient
       colors={['#381FDE', '#7D6BF4', '#6F61CD', '#381EEA']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      start={{ x: 1, y: 1 }}
+      end={{ x: 0, y: 0 }}
       style={styles.card}>
         <Animated.View style={[styles.shine, shineStyle]}>
           <LinearGradient
@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     overflow: 'hidden',
+    boxShadow: '0px 2px 4px rgba(14, 39, 178, 0.54)',
   },
   shine: {
     position: 'absolute',
