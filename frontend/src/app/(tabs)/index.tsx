@@ -4,16 +4,46 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BalanceCard } from '@/components/home/balance-card';
-import { BillCard } from '@/components/home/bill-card';
 import { TransactionRow } from '@/components/home/transaction-row';
+import { BillsCarousel } from '@/components/home/bill-carousel';
 
 // Placeholder data — shaped to match the backend HomeSummarySchema.
 // Swap for a real fetch once the API client exists.
 const MOCK_DATA = {
   balance: { net_balance: 21324.49, total_income: 2183.09, total_expenses: 2183.09 },
   upcoming_bills: [
-    { bill_name: 'Youtube', amount: 213.42, days_remaining: 2 },
-    { bill_name: 'Spotify', amount: 179.0, days_remaining: 1 },
+    {
+      bill_name: 'Youtube',
+      amount: 213.42,
+      days_remaining: 14,
+      icon: 'logo-youtube',
+      iconColor: '#C0392B',
+      backgroundColor: '#F3D9D7',
+    },
+    {
+      bill_name: 'Spotify',
+      amount: 179.0,
+      days_remaining: 10,
+      icon: 'musical-notes',
+      iconColor: '#1B6E3C',
+      backgroundColor: '#D6EFDD',
+    },
+    {
+      bill_name: 'Netflix',
+      amount: 499.0,
+      days_remaining: 21,
+      icon: 'play-circle',
+      iconColor: '#B71C1C',
+      backgroundColor: '#F4D6D6',
+    },
+    {
+      bill_name: 'KPLC',
+      amount: 850.0,
+      days_remaining: 30,
+      icon: 'flash',
+      iconColor: '#8A6D1D',
+      backgroundColor: '#F3E8BE',
+    },
   ],
   recent_transactions: [
     { merchant_name: 'Funtimes', transaction_date: 'Wednesday, 10:15 AM', amount: 30.0 },
@@ -56,24 +86,7 @@ export default function HomeScreen() {
           </Link>
         </View>
 
-        <View style={styles.billRow}>
-          <BillCard
-            name="Youtube"
-            amount={MOCK_DATA.upcoming_bills[0].amount}
-            daysLeft={MOCK_DATA.upcoming_bills[0].days_remaining}
-            icon="logo-youtube"
-            iconColor="#C0392B"
-            backgroundColor="#F3D9D7"
-          />
-          <BillCard
-            name="Spotify"
-            amount={MOCK_DATA.upcoming_bills[1].amount}
-            daysLeft={MOCK_DATA.upcoming_bills[1].days_remaining}
-            icon="musical-notes"
-            iconColor="#1B6E3C"
-            backgroundColor="#D6EFDD"
-          />
-        </View>
+        <BillsCarousel bills={MOCK_DATA.upcoming_bills} />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Transactions</Text>
@@ -149,9 +162,5 @@ const styles = StyleSheet.create({
   seeAll: {
     fontSize: 13,
     color: '#666666',
-  },
-  billRow: {
-    flexDirection: 'row',
-    gap: 12,
   },
 });

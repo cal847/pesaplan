@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     padding: 16,
-    minHeight: 110,
+    minHeight: 150,
     justifyContent: 'space-between',
   },
   header: {
