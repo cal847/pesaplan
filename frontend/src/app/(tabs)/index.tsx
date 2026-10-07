@@ -1,5 +1,5 @@
-// frontend/src/app/index.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { Link } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -49,9 +49,11 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Upcoming Subscriptions</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>See All</Text>
-          </TouchableOpacity>
+          <Link href="/all-subscriptions" asChild>
+            <TouchableOpacity>
+              <Text style={styles.seeAll}>See All</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
 
         <View style={styles.billRow}>
@@ -75,9 +77,11 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>See All</Text>
-          </TouchableOpacity>
+          <Link href="/all-transactions" asChild>
+            <TouchableOpacity>
+              <Text style={styles.seeAll}>See All</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
 
         {MOCK_DATA.recent_transactions.map((tx, i) => (
@@ -121,7 +125,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 5,
     marginTop: 12,
     gap: 8,
   },

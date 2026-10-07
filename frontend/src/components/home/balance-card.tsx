@@ -2,6 +2,16 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import React from 'react';
 
 type Props = {
   balance: number;
@@ -14,12 +24,55 @@ function formatKsh(amount: number) {
 }
 
 export function BalanceCard({ balance, received, spent }: Props) {
+  const shineX = useSharedValue(-120);
+
+  React.useEffect(() => {
+    shineX.value = withRepeat(
+      withSequence(
+        withTiming(420, {
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withDelay(
+          5000,
+          withTiming(-120, {
+            duration: 0,
+          }),
+        ),
+      ),
+      -1,
+      false,
+    );
+  }, []);
+
+  const shineStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: shineX.value },
+      { rotate: '-25deg' },
+    ],
+  }));
+
   return (
     <LinearGradient
-      colors={['#5B3FE0', '#3F2FD6']}
+      colors={['#381FDE', '#7D6BF4', '#6F61CD', '#381EEA']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.card}>
+        <Animated.View style={[styles.shine, shineStyle]}>
+          <LinearGradient
+            colors={[
+              'transparent',
+              'rgba(255,255,255,0.08)',
+              'rgba(255,255,255,0.20)',
+              'rgba(255,255,255,0.08)',
+              'transparent',
+            ]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.shineGradient}
+          />
+        </Animated.View>
+
       <Text style={styles.label}>Your Balance</Text>
       <Text style={styles.balance}>{formatKsh(balance)}</Text>
 
@@ -54,6 +107,18 @@ const styles = StyleSheet.create({
     padding: 20,
     marginHorizontal: 16,
     marginTop: 16,
+    overflow: 'hidden',
+  },
+  shine: {
+    position: 'absolute',
+    top: -40,
+    left: -60,
+    width: 60,
+    height: '160%',
+  },
+
+  shineGradient: {
+    flex: 1,
   },
   label: {
     color: '#E4E0FB',
