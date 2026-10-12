@@ -1,4 +1,3 @@
-// frontend/src/components/home/balance-card.tsx
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
@@ -54,7 +53,7 @@ export function BalanceCard({ balance, received, spent }: Props) {
 
   return (
     <LinearGradient
-      colors={['#381FDE', '#7D6BF4', '#6F61CD', '#381EEA']}
+      colors={['#381FDE', '#8072dd', '#6F61CD', '#381EEA']}
       start={{ x: 1, y: 1 }}
       end={{ x: 0, y: 0 }}
       style={styles.card}>
@@ -80,7 +79,7 @@ export function BalanceCard({ balance, received, spent }: Props) {
         <View style={styles.statBlock}>
           <View style={styles.statHeader}>
             <View style={[styles.iconCircle, { backgroundColor: '#FFFFFF' }]}>
-              <Ionicons name="arrow-down" size={14} color="#1FA64A" />
+              <Ionicons name="arrow-down" size={14} color="#1FA64A" style={{ transform: [{ rotate: '-320deg' }] }} />
             </View>
             <Text style={styles.statLabel}>Received</Text>
           </View>
@@ -90,7 +89,7 @@ export function BalanceCard({ balance, received, spent }: Props) {
         <View style={styles.statBlock}>
           <View style={styles.statHeader}>
             <View style={[styles.iconCircle, { backgroundColor: '#FFFFFF' }]}>
-              <Ionicons name="arrow-up" size={14} color="#D6393F" />
+              <Ionicons name="arrow-up" size={14} color="#D6393F" style={{ transform: [{ rotate: '40deg' }] }} />
             </View>
             <Text style={styles.statLabel}>Spent</Text>
           </View>
@@ -105,8 +104,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
     padding: 20,
-    marginHorizontal: 16,
     marginTop: 16,
+    minHeight: 180,
     overflow: 'hidden',
     boxShadow: '0px 2px 4px rgba(14, 39, 178, 0.54)',
   },
@@ -144,7 +143,8 @@ const styles = StyleSheet.create({
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    paddingBottom: 4,
   },
   iconCircle: {
     width: 20,
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   statValue: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 17,
     marginTop: 4,
   },
 });

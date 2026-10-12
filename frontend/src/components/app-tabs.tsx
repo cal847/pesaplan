@@ -17,6 +17,7 @@ export default function AppTabs() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // animation: 'shift',
         tabBarShowLabel: false,
         tabBarStyle: styles.bar,
         tabBarItemStyle: styles.item,
