@@ -8,6 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CategorySection } from '@/components/budget/category-section';
 import { EditBudgetModal } from '@/components/budget/edit-budget-modal';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
+import { JiggleLimit } from '@/components/budget/jiggle-card';
+import { EditLimitModal } from '@/components/budget/edit-limit-modal';
 
 type BudgetItem = { icon: string; name: string; amount: string; backgroundColor: string };
 
@@ -65,11 +67,16 @@ const SECTIONS: { title: string; total: string; items: BudgetItem[] }[] = [
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
 
+const formatKsh = (n: number) =>
+  `KSh ${n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export default function BudgetScreen() {
   const router = useRouter();
   const [period, setPeriod] = useState('Weekly');
   const [editMode, setEditMode] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
+  const [limit, setLimit] = useState(30000);
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -77,15 +84,30 @@ export default function BudgetScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
-        <DropdownPicker label="Period" options={PERIODS} selected={period} onSelect={setPeriod} />
+
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A1A' }}>My Budget</Text>
+
         <TouchableOpacity onPress={() => setEditMode((v) => !v)}>
           <Ionicons name={editMode ? 'checkmark' : 'pencil'} size={20} color="#3F2FD6" />
         </TouchableOpacity>
       </View>
-
-      <Text style={styles.limitLabel}>
-        Spending Limit: <Text style={styles.limitAmount}>KSh 30,000.00</Text>
-      </Text>
+      <View style={styles.subHeader}>
+        <JiggleLimit
+          amount={formatKsh(limit)}
+          editMode={editMode}
+          onPress={() => setLimitModalOpen(true)}
+        />
+        <EditLimitModal
+          visible={limitModalOpen}
+          currentLimit={limit}
+          onClose={() => setLimitModalOpen(false)}
+          onSave={(value) => {
+            setLimit(value);
+            // TODO: persist to the user's spending_limit once the API client exists
+          }}
+        />
+        <DropdownPicker label="Period" options={PERIODS} selected={period} onSelect={setPeriod} />
+      </View>   
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -123,7 +145,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  limitLabel: { textAlign: 'center', fontSize: 15, fontWeight: '700', color: '#3F2FD6', marginBottom: 12 },
-  limitAmount: { fontWeight: '800' },
+  subHeader: { flexDirection: 'row', alignItems: 'center', gap: 0, justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  // limitLabel: { textAlign: 'center', fontSize: 15, fontWeight: '700', color: '#3F2FD6', marginBottom: 12 },
+  // limitAmount: { fontWeight: '800' },
   scroll: { paddingHorizontal: 16, paddingBottom: 100 },
 });

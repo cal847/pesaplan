@@ -117,8 +117,8 @@ export default function AnalyticsScreen() {
   const slices: Slice[] = isCategoryView
     ? categories.map((c) => ({ label: c.name, value: c.amount, color: c.color }))
     : [
-        { label: 'Income', value: totalIncome, color: INCOME_COLOR },
-        { label: 'Expense', value: totalExpense, color: EXPENSE_COLOR },
+        { label: 'Income', value: totalIncome, color: '#1038bc' },
+        { label: 'Expense', value: totalExpense, color: '#c9170e' },
       ];
 
   const chartWidth = width - 114;

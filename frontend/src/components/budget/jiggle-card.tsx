@@ -10,7 +10,38 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 
-type Props = {
+/**
+ * The one copy of the jiggle logic. Odd and even indexes sway opposite ways,
+ * so neighbors don't move in sync (same trick iOS uses).
+ */
+function useJiggle(active: boolean, index: number, amplitude = 1.5) {
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    if (active) {
+      const direction = index % 2 === 0 ? 1 : -1;
+      rotation.value = withRepeat(
+        withSequence(
+          withTiming(amplitude * direction, { duration: 120 }),
+          withTiming(-amplitude * direction, { duration: 120 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      cancelAnimation(rotation);
+      rotation.value = withTiming(0, { duration: 100 });
+    }
+  }, [active]);
+
+  return useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+}
+
+/* ---------------------------------- Card ---------------------------------- */
+
+type CardProps = {
   icon: string; // emoji placeholder, swap for real icons/merchant logos later
   name: string;
   amount: string;
@@ -20,30 +51,8 @@ type Props = {
   onPress: () => void;
 };
 
-export function JiggleCard({ icon, name, amount, backgroundColor, editMode, index, onPress }: Props) {
-  const rotation = useSharedValue(0);
-
-  useEffect(() => {
-    if (editMode) {
-      // alternate phase by index — same trick iOS uses so cards don't jiggle in sync
-      const direction = index % 2 === 0 ? 1 : -1;
-      rotation.value = withRepeat(
-        withSequence(
-          withTiming(1.5 * direction, { duration: 120 }),
-          withTiming(-1.5 * direction, { duration: 120 })
-        ),
-        -1,
-        true
-      );
-    } else {
-      cancelAnimation(rotation);
-      rotation.value = withTiming(0, { duration: 100 });
-    }
-  }, [editMode]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
-  }));
+export function JiggleCard({ icon, name, amount, backgroundColor, editMode, index, onPress }: CardProps) {
+  const animatedStyle = useJiggle(editMode, index);
 
   return (
     <Animated.View style={animatedStyle}>
@@ -59,6 +68,30 @@ export function JiggleCard({ icon, name, amount, backgroundColor, editMode, inde
             <Text style={styles.editBadgeText}>✎</Text>
           </View>
         )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/* ----------------------------- Spending limit ----------------------------- */
+
+type LimitProps = {
+  amount: string; // already formatted, e.g. "KSh 30,000.00"
+  editMode: boolean;
+  onPress: () => void;
+};
+
+// Jiggles with the cards but has no ✎ badge. index 1 makes it sway the opposite
+// way to the first card, which is the first thing below it.
+export function JiggleLimit({ amount, editMode, onPress }: LimitProps) {
+  const animatedStyle = useJiggle(editMode, 1);
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable onPress={onPress} disabled={!editMode} hitSlop={10}>
+        <Text style={styles.limitLabel}>
+          Spending Limit: <Text style={styles.limitAmount}>{amount}</Text>
+        </Text>
       </Pressable>
     </Animated.View>
   );
@@ -81,4 +114,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   editBadgeText: { color: '#FFF', fontSize: 10 },
+  limitLabel: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#3c0854',
+    marginHorizontal: 12,
+  },
+  limitAmount: { fontWeight: '800' },
 });

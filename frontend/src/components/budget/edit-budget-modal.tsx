@@ -1,4 +1,3 @@
-// frontend/src/components/budget/edit-budget-modal.tsx
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
