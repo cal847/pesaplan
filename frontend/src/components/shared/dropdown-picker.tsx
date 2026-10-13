@@ -8,15 +8,17 @@ type Props = {
   options: string[];
   selected: string;
   onSelect: (value: string) => void;
+  triggerTextStyle?: any;
+  containerStyle?: any;
 };
 
-export function DropdownPicker({ label, options, selected, onSelect }: Props) {
+export function DropdownPicker({ label, options, selected, onSelect, triggerTextStyle, containerStyle }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <Pressable style={styles.trigger} onPress={() => setOpen(true)}>
-        <Text style={styles.triggerText}>{selected}</Text>
+      <Pressable style={[styles.trigger, containerStyle]} onPress={() => setOpen(true)}>
+        <Text style={[styles.triggerText, triggerTextStyle]}>{selected}</Text>
         <Ionicons name="chevron-down" size={14} color="#333" />
       </Pressable>
 
