@@ -131,7 +131,13 @@ export default function BudgetScreen() {
           editMode={editMode}
           onPress={() => setLimitModalOpen(true)}
         />
-        <DropdownPicker label="Period" options={PERIODS} selected={period} onSelect={setPeriod} />
+        <DropdownPicker
+          label="Period"
+          options={PERIODS}
+          selected={period}
+          onSelect={setPeriod}
+          disabled={!editMode}
+        />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
