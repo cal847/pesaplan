@@ -1,16 +1,24 @@
-// frontend/src/components/shared/dropdown-picker.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 
-type Props = {
+type DropdownPickerProps = {
   label: string;
   options: string[];
   selected: string;
   onSelect: (value: string) => void;
   disabled?: boolean;
-  triggerTextStyle?: any;
-  containerStyle?: any;
+  triggerTextStyle?: StyleProp<TextStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 export function DropdownPicker({
@@ -21,22 +29,33 @@ export function DropdownPicker({
   disabled = false,
   triggerTextStyle,
   containerStyle,
-}: Props) {
+}: DropdownPickerProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Pressable
-        style={[styles.trigger, disabled && styles.triggerDisabled, containerStyle]}
+        style={[styles.trigger, containerStyle]}
         onPress={() => setOpen(true)}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityState={{ disabled }}>
-        <Text style={[styles.triggerText, triggerTextStyle]}>{selected}</Text>
-        <Ionicons name="chevron-down" size={14} color={disabled ? '#999' : '#333'} />
+        <Text
+          style={[
+            styles.triggerText,
+            triggerTextStyle,
+            disabled && styles.triggerTextDisabled,
+          ]}>
+          {selected}
+        </Text>
+        {!disabled && <Ionicons name="chevron-down" size={14} color="#333" />}
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>{label}</Text>
@@ -63,9 +82,14 @@ export function DropdownPicker({
 
 const styles = StyleSheet.create({
   trigger: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  triggerDisabled: { opacity: 0.5 },
   triggerText: { fontSize: 14, color: '#333', fontStyle: 'italic' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 40 },
+  triggerTextDisabled: { fontWeight: '700' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    padding: 40,
+  },
   sheet: { backgroundColor: '#FFF', borderRadius: 16, padding: 16 },
   sheetTitle: { fontSize: 13, color: '#888', marginBottom: 8 },
   option: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 },
