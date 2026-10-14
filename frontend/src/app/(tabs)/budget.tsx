@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategorySection } from '@/components/budget/category-section';
@@ -16,6 +16,7 @@ import {
   formatAmount,
   sumItems,
 } from '@/components/budget/budget-data';
+import { ConfirmDeleteModal } from '@/components/shared/confimr-delete';
 
 // Placeholder — swap for GET /api/v1/budgets grouped by category
 const INITIAL_SECTIONS: BudgetSection[] = [
@@ -85,6 +86,12 @@ export default function BudgetScreen() {
     .map((i) => i.name)
     .filter((n) => n !== editor?.item?.name);
 
+  const [itemToDelete, setItemToDelete] = useState<{
+    sectionTitle: string;
+    item: BudgetItem;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   function saveItem(value: BudgetItem) {
     if (!editor) return;
     const editing = editor.item;
@@ -109,6 +116,40 @@ export default function BudgetScreen() {
     if (clash) return; // titles are the list keys, so duplicates are ignored for now
     setSections((prev) => prev.map((s) => (s.title === oldTitle ? { ...s, title: newTitle } : s)));
     // TODO: PATCH /api/v1/categories/{id} once the API client exists
+  }
+
+  function deleteItem(
+    sectionTitle: string,
+    item: BudgetItem
+  ) {
+    setItemToDelete({ sectionTitle, item });
+  }
+
+  async function confirmDeleteItem() {
+    if (!itemToDelete) return;
+
+    const { sectionTitle, item } = itemToDelete;
+
+    try {
+      setIsDeleting(true);
+
+      // TODO: replace with DELETE /api/v1/budgets/{id}
+      setSections((previous) =>
+        previous.map((section) =>
+          section.title !== sectionTitle
+            ? section
+            : {
+                ...section,
+                items: section.items.filter(
+                  (existing) => existing.name !== item.name
+                ),
+              }
+        )
+      );
+    } finally {
+      setIsDeleting(false);
+      setItemToDelete(null);
+    }
   }
 
   return (
@@ -152,6 +193,7 @@ export default function BudgetScreen() {
             onItemPress={(item) => setEditor({ sectionTitle: section.title, item })}
             onAddPress={() => setEditor({ sectionTitle: section.title, item: null })}
             onTitlePress={() => setEditingCategory(section.title)}
+            onItemDelete={(item) => deleteItem(section.title, item)}
           />
         ))}
       </ScrollView>
@@ -183,6 +225,17 @@ export default function BudgetScreen() {
           setLimit(value);
           // TODO: persist to the user's spending_limit once the API client exists
         }}
+      />
+
+      <ConfirmDeleteModal
+        visible={!!itemToDelete}
+        title="Delete budget item?"
+        message={`Are you sure you want to delete “${
+          itemToDelete?.item.name ?? ''
+        }”?`}
+        loading={isDeleting}
+        onCancel={() => setItemToDelete(null)}
+        onConfirm={confirmDeleteItem}
       />
     </SafeAreaView>
   );

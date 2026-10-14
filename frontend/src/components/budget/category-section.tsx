@@ -12,11 +12,12 @@ type Props = {
   editMode: boolean;
   index: number;
   onItemPress: (item: BudgetItem) => void;
+  onItemDelete: (item: BudgetItem) => void;
   onAddPress: () => void;
   onTitlePress: () => void;
 };
 
-export function CategorySection({ title, total, items, editMode, index, onItemPress, onTitlePress, onAddPress }: Props) {
+export function CategorySection({ title, total, items, editMode, index, onItemPress, onItemDelete, onTitlePress, onAddPress }: Props) {
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -39,6 +40,7 @@ export function CategorySection({ title, total, items, editMode, index, onItemPr
             editMode={editMode}
             index={i}
             onPress={() => onItemPress(item)}
+            onDelete={() => onItemDelete(item)}
           />
         ))}
         {editMode && (
