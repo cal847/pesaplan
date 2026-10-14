@@ -121,7 +121,7 @@ export default function AnalyticsScreen() {
         { label: 'Expense', value: totalExpense, color: '#c9170e' },
       ];
 
-  const chartWidth = width - 114;
+  const chartWidth = width - 90;
 
   const barCommon = {
     width: chartWidth,
@@ -168,7 +168,7 @@ export default function AnalyticsScreen() {
     
     // income vs expense: two bars per period, sized to the number of periods
     const unit = chartWidth / trend.length;
-    const barWidth = Math.max(5, Math.min(18, Math.floor(unit * 0.3)));
+    const barWidth = 15;
     const innerGap = 2;
     const groupGap = Math.max(4, unit - 2 * barWidth - innerGap);
 
@@ -186,7 +186,6 @@ export default function AnalyticsScreen() {
     return <BarChart {...barCommon} data={data} barWidth={barWidth} />;
   }
 
-  // FIX 2: renderLines is now a sibling function, accessible in the JSX return
   function renderLines() {
     const n = trend.length;
     const edge = 12;
@@ -201,7 +200,7 @@ export default function AnalyticsScreen() {
         dataPointsColor1={INCOME_COLOR}
         dataPointsColor2={EXPENSE_COLOR}
         dataPointsRadius={n > 8 ? 2 : 4}
-        thickness={2}
+        thickness={1}
         width={chartWidth}
         height={180}
         noOfSections={4}
@@ -260,19 +259,21 @@ export default function AnalyticsScreen() {
             </View>
           </View>
 
-          {chartType === 'Pie Chart' ? (
-            <DonutChart
-              key={`${view}-${period}`}
-              slices={slices}
-              selectedIndex={selectedIndex}
-              onSelect={setSelectedIndex}
-              formatAmount={formatKsh}
-            />
-          ) : chartType === 'Line Chart' ? (
-            <View key={`${view}-${period}-lines`}>{renderLines()}</View>
-          ) : (
-            <View key={`${view}-${period}-bars`}>{renderBars()}</View>
-          )}
+          <View style={styles.chartArea}>
+            {chartType === 'Pie Chart' ? (
+              <DonutChart
+                key={`${view}-${period}`}
+                slices={slices}
+                selectedIndex={selectedIndex}
+                onSelect={setSelectedIndex}
+                formatAmount={formatKsh}
+              />
+            ) : chartType === 'Line Chart' ? (
+              <View key={`${view}-${period}-lines`}>{renderLines()}</View>
+            ) : (
+              <View key={`${view}-${period}-bars`}>{renderBars()}</View>
+            )}
+          </View>
 
           {!isCategoryView && (
             <View style={styles.legend}>
@@ -347,13 +348,26 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '700', color: '#1A1A1A' },
   scroll: { paddingHorizontal: 16, paddingBottom: 100 },
-  chartCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 20 },
+  chartCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 20,
+    minHeight: 380,
+    width: '105%',
+    alignSelf: 'center'
+  },
   legend: { flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: 12, color: '#555' },
   grid: { gap: 12 },
-  gridRow: { flexDirection: 'row', gap: 12 },
+  gridRow: {
+    flexDirection: 'row',
+    gap: 5,
+    width: '105%',
+    alignSelf: 'center'
+  },
   chartControlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -361,6 +375,12 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 16,
     paddingVertical: 5,
+  },
+  chartArea: {
+    flex: 1,
+    minHeight: 180,
+    // alignItems: 'center',
+    justifyContent: 'center',
   },
   viewPicker: {
     flexShrink: 1,
