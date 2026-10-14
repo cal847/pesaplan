@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
   },
-  title: { fontSize: 18, fontWeight: '700' },
+  title: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
   subtitle: { fontSize: 13, color: '#888', marginTop: 4, marginBottom: 20 },
   inputRow: {
     flexDirection: 'row',
