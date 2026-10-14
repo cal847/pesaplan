@@ -1,13 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
-import Animated, {
-  cancelAnimation,
-  useAnimatedProps,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedProps } from 'react-native-reanimated';
 
 export type Slice = {
   label: string;
@@ -33,44 +27,61 @@ function polarToCartesian(
   angleInDegrees: number
 ) {
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180;
-
   return {
     x: centerX + radius * Math.cos(angleInRadians),
     y: centerY + radius * Math.sin(angleInRadians),
   };
 }
 
-function createArcPath({
+function createRoundedArcPath({
   centerX,
   centerY,
-  radius,
+  innerRadius,
+  outerRadius,
   startAngle,
   endAngle,
+  cornerRadius = 3,
 }: {
   centerX: number;
   centerY: number;
-  radius: number;
+  innerRadius: number;
+  outerRadius: number;
   startAngle: number;
   endAngle: number;
+  cornerRadius?: number;
 }) {
-  const start = polarToCartesian(centerX, centerY, radius, endAngle);
-  const end = polarToCartesian(centerX, centerY, radius, startAngle);
+  const sweepAngle = endAngle - startAngle;
+  
+  if (sweepAngle < 1) {
+     return ''; 
+  }
 
-  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+  const startOuter = polarToCartesian(centerX, centerY, outerRadius, startAngle);
+  const endOuter = polarToCartesian(centerX, centerY, outerRadius, endAngle);
+  const startInner = polarToCartesian(centerX, centerY, innerRadius, startAngle);
+  const endInner = polarToCartesian(centerX, centerY, innerRadius, endAngle);
 
-  return [
-    'M',
-    start.x,
-    start.y,
-    'A',
-    radius,
-    radius,
-    0,
-    largeArcFlag,
-    0,
-    end.x,
-    end.y,
+  const outerAngleOffset = cornerRadius / outerRadius * (180 / Math.PI);
+  const innerAngleOffset = cornerRadius / innerRadius * (180 / Math.PI);
+
+  const startOuterTrimmed = polarToCartesian(centerX, centerY, outerRadius, startAngle + outerAngleOffset);
+  const endOuterTrimmed = polarToCartesian(centerX, centerY, outerRadius, endAngle - outerAngleOffset);
+  
+  const startInnerTrimmed = polarToCartesian(centerX, centerY, innerRadius, startAngle + innerAngleOffset);
+  const endInnerTrimmed = polarToCartesian(centerX, centerY, innerRadius, endAngle - innerAngleOffset);
+
+  const largeArcFlag = sweepAngle > 180 ? 1 : 0;
+
+  const d = [
+    'M', startOuterTrimmed.x, startOuterTrimmed.y,
+    'A', outerRadius, outerRadius, 0, largeArcFlag, 1, endOuterTrimmed.x, endOuterTrimmed.y,
+    'Q', endOuter.x, endOuter.y, endInnerTrimmed.x, endInnerTrimmed.y,
+    'A', innerRadius, innerRadius, 0, largeArcFlag, 0, startInnerTrimmed.x, startInnerTrimmed.y,
+    'Q', startInner.x, startInner.y, startOuterTrimmed.x, startOuterTrimmed.y,
+    'Z'
   ].join(' ');
+
+  return d;
 }
 
 function DonutSlice({
@@ -78,11 +89,10 @@ function DonutSlice({
   index,
   centerX,
   centerY,
-  radius,
-  thickness,
+  innerRadius,
+  outerRadius,
   selectedIndex,
   onSelect,
-  popOffset,
   startAngle,
   endAngle,
 }: {
@@ -90,41 +100,42 @@ function DonutSlice({
   index: number;
   centerX: number;
   centerY: number;
-  radius: number;
-  thickness: number;
+  innerRadius: number;
+  outerRadius: number;
   selectedIndex: number | null;
   onSelect: (index: number | null) => void;
-  popOffset: SharedValue<number>;
   startAngle: number;
   endAngle: number;
 }) {
   const isSelected = selectedIndex === index;
-  const midAngle = (startAngle + endAngle) / 2;
-  const midAngleRadians = ((midAngle - 90) * Math.PI) / 180;
 
+  // We still use AnimatedG to allow for future animations if needed, 
+  // but we remove the transform logic that caused the "pop".
   const animatedProps = useAnimatedProps(() => {
-    const offsetX = isSelected ? Math.cos(midAngleRadians) * popOffset.value : 0;
-    const offsetY = isSelected ? Math.sin(midAngleRadians) * popOffset.value : 0;
-
     return {
-      transform: [{ translateX: offsetX }, { translateY: offsetY }],
+      transform: [{ translateX: 0 }, { translateY: 0 }],
     };
   });
+
+  const pathData = createRoundedArcPath({
+    centerX,
+    centerY,
+    innerRadius,
+    outerRadius,
+    startAngle,
+    endAngle,
+    cornerRadius: 3,
+  });
+
+  if (!pathData) return null;
 
   return (
     <AnimatedG animatedProps={animatedProps}>
       <Path
-        d={createArcPath({
-          centerX,
-          centerY,
-          radius,
-          startAngle,
-          endAngle,
-        })}
-        stroke={slice.color}
-        strokeWidth={thickness}
-        strokeLinecap="round"
-        fill="none"
+        d={pathData}
+        fill={slice.color}
+        stroke="none"
+        opacity={isSelected ? 1 : 0.9} // Subtle visual feedback via opacity instead of movement
         onPress={() => {
           onSelect(isSelected ? null : index);
         }}
@@ -139,40 +150,51 @@ export function DonutChart({
   onSelect,
   formatAmount,
   size = 220,
-  thickness = 38,
+  thickness = 40,
 }: Props) {
-  const total = slices.reduce((sum: number, slice: Slice) => sum + slice.value, 0);
+  // Filter out zero values to prevent math errors
+  const validSlices = slices.filter((s) => s.value > 0);
+  const total = validSlices.reduce((sum: number, slice: Slice) => sum + slice.value, 0);
+
+  // Safe selection check
   const selected =
-    selectedIndex !== null && slices[selectedIndex] ? slices[selectedIndex] : null;
+    selectedIndex !== null && validSlices[selectedIndex]
+      ? validSlices[selectedIndex]
+      : null;
 
   const percent = selected && total > 0 ? (selected.value / total) * 100 : 0;
 
   const centerX = size / 2;
   const centerY = size / 2;
-  const radius = (size - thickness) / 2;
-  const popOffset = useSharedValue(0);
+  
+  const outerRadius = (size / 2) - 10; 
+  const innerRadius = outerRadius - thickness;
 
-  useEffect(() => {
-    cancelAnimation(popOffset);
-    popOffset.value = withTiming(selectedIndex === null ? 0 : 8, {
-      duration: 220,
-    });
-  }, [selectedIndex, popOffset]);
-
-  if (total <= 0) {
-    return null;
+  if (total <= 0 || validSlices.length === 0) {
+    return (
+      <View style={[styles.wrap, { height: size }]}>
+        <View style={styles.center}>
+          <Text style={styles.centerName}>No data available</Text>
+          <Text style={styles.centerAmount}>for this period</Text>
+        </View>
+      </View>
+    );
   }
 
   let currentAngle = 0;
+  // If only 1 slice, remove gap to make it a perfect circle
+  const gap = validSlices.length === 1 ? 0 : 1;
 
   return (
     <View style={styles.wrap}>
       <Svg width={size} height={size}>
-        {slices.map((slice: Slice, index: number) => {
+        {validSlices.map((slice: Slice, index: number) => {
           const sweep = (slice.value / total) * 360;
-          const startAngle = currentAngle;
-          const endAngle = currentAngle + sweep;
-          currentAngle = endAngle;
+          
+          const startAngle = currentAngle + gap / 2;
+          const endAngle = currentAngle + sweep - gap / 2;
+
+          currentAngle += sweep;
 
           return (
             <DonutSlice
@@ -181,11 +203,10 @@ export function DonutChart({
               index={index}
               centerX={centerX}
               centerY={centerY}
-              radius={radius}
-              thickness={thickness}
+              innerRadius={innerRadius}
+              outerRadius={outerRadius}
               selectedIndex={selectedIndex}
               onSelect={onSelect}
-              popOffset={popOffset}
               startAngle={startAngle}
               endAngle={endAngle}
             />

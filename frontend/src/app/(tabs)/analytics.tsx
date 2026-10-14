@@ -1,4 +1,3 @@
-// frontend/src/app/(tabs)/analytics.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -25,8 +24,14 @@ const CHART_TYPES_BY_VIEW: Record<string, string[]> = {
   'Income vs Expense': ['Bar Chart', 'Line Chart', 'Pie Chart'],
   'Category Spending': ['Bar Chart', 'Pie Chart'],
 };
-const INCOME_COLOR = '#3F9FE0'; // matches the "You've Received" card
-const EXPENSE_COLOR = '#E8923F'; // matches the "You've Spent" card
+
+// Colors for Bar/Line Charts
+const INCOME_COLOR = '#3F9FE0'; 
+const EXPENSE_COLOR = '#E8923F'; 
+
+// Colors for Pie Chart (Hardcoded in your slice definition)
+const PIE_INCOME_COLOR = '#1038bc';
+const PIE_EXPENSE_COLOR = '#c9170e';
 
 const TREND: Record<string, { label: string; income: number; expense: number }[]> = {
   Weekly: [
@@ -117,8 +122,8 @@ export default function AnalyticsScreen() {
   const slices: Slice[] = isCategoryView
     ? categories.map((c) => ({ label: c.name, value: c.amount, color: c.color }))
     : [
-        { label: 'Income', value: totalIncome, color: '#1038bc' },
-        { label: 'Expense', value: totalExpense, color: '#c9170e' },
+        { label: 'Income', value: totalIncome, color: PIE_INCOME_COLOR },
+        { label: 'Expense', value: totalExpense, color: PIE_EXPENSE_COLOR },
       ];
 
   const chartWidth = width - 90;
@@ -148,7 +153,6 @@ export default function AnalyticsScreen() {
     }
   }
 
-  // FIX 1: renderBars is now properly closed before renderLines begins
   function renderBars() {
     if (isCategoryView) {
       const spacing = Math.max(8, Math.floor(chartWidth / categories.length) - 28);
@@ -166,7 +170,6 @@ export default function AnalyticsScreen() {
       );
     }
     
-    // income vs expense: two bars per period, sized to the number of periods
     const unit = chartWidth / trend.length;
     const barWidth = 15;
     const innerGap = 2;
@@ -178,7 +181,7 @@ export default function AnalyticsScreen() {
         frontColor: INCOME_COLOR,
         spacing: innerGap,
         label: r.label,
-        labelWidth: 2 * barWidth + innerGap, // centers the label under the pair
+        labelWidth: 2 * barWidth + innerGap,
       },
       { value: r.expense, frontColor: EXPENSE_COLOR, spacing: groupGap },
     ]);
@@ -219,6 +222,10 @@ export default function AnalyticsScreen() {
       />
     );
   }
+
+  // Determine legend colors based on current chart type
+  const legendIncomeColor = chartType === 'Pie Chart' ? PIE_INCOME_COLOR : INCOME_COLOR;
+  const legendExpenseColor = chartType === 'Pie Chart' ? PIE_EXPENSE_COLOR : EXPENSE_COLOR;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -278,11 +285,11 @@ export default function AnalyticsScreen() {
           {!isCategoryView && (
             <View style={styles.legend}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: INCOME_COLOR }]} />
+                <View style={[styles.legendDot, { backgroundColor: legendIncomeColor }]} />
                 <Text style={styles.legendText}>Income</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: EXPENSE_COLOR }]} />
+                <View style={[styles.legendDot, { backgroundColor: legendExpenseColor }]} />
                 <Text style={styles.legendText}>Expense</Text>
               </View>
             </View>
@@ -306,12 +313,15 @@ export default function AnalyticsScreen() {
                 label="You've Received"
                 value={formatKsh(totalIncome)}
                 colors={['#6FC8E8', '#3F9FE0']}
-              />
+                labelStyle={styles.receivedLabel}
+                valueStyle={styles.receivedValue}              />
               <StatCard
                 icon="arrow-up"
                 label="You've Spent"
                 value={formatKsh(totalExpense)}
                 colors={['#F2C14E', '#E8923F']}
+                labelStyle={styles.spentLabel}
+                valueStyle={styles.spentValue}
               />
             </View>
             <View style={styles.gridRow}>
@@ -321,6 +331,9 @@ export default function AnalyticsScreen() {
                 value="KSh 23,139.38"
                 colors={['#8DD98D', '#4CAF50']}
                 progressPercent={35}
+                labelStyle={styles.budgetLabel}
+                valueStyle={styles.budgetValue}
+                progressFillStyle={styles.budgetProgressFill}
               />
               <StatCard
                 icon="disc"
@@ -328,6 +341,9 @@ export default function AnalyticsScreen() {
                 value="3 Out of 4"
                 colors={['#C98DE8', '#9B4FE0']}
                 progressPercent={75}
+                labelStyle={styles.goalsLabel}
+                valueStyle={styles.goalsValue}
+                progressFillStyle={styles.goalsProgressFill}
               />
             </View>
           </Animated.View>
@@ -353,7 +369,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     marginBottom: 20,
-    minHeight: 380,
+    minHeight: 370,
     width: '105%',
     alignSelf: 'center'
   },
@@ -362,6 +378,9 @@ const styles = StyleSheet.create({
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: 12, color: '#555' },
   grid: { gap: 12 },
+  progressCardValue: {
+    marginTop: 25,
+  },
   gridRow: {
     flexDirection: 'row',
     gap: 5,
@@ -379,11 +398,49 @@ const styles = StyleSheet.create({
   chartArea: {
     flex: 1,
     minHeight: 180,
-    // alignItems: 'center',
     justifyContent: 'center',
   },
   viewPicker: {
     flexShrink: 1,
+  },
+  receivedLabel: {
+    color: '#05092e',
+  },
+  receivedValue: {
+    color: '#05092e',
+    fontWeight: '800',
+  },
+
+  spentLabel: {
+    color: '#482001',
+  },
+  spentValue: {
+    color: '#482001',
+    fontWeight: '800',
+  },
+
+  budgetLabel: {
+    color: '#043404',
+  },
+  budgetValue: {
+    color: '#043404',
+    fontWeight: '800',
+    marginTop: 18,
+  },
+  budgetProgressFill: {
+    backgroundColor: '#1B6E3C',
+  },
+
+  goalsLabel: {
+    color: '#0e0215',
+  },
+  goalsValue: {
+    color: '#20062e',
+    fontWeight: '800',
+    marginTop: 18,
+  },
+  goalsProgressFill: {
+    backgroundColor: '#6A1B9A',
   },
   viewTrigger: {
     fontSize: 15,
