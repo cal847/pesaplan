@@ -1,4 +1,3 @@
-// frontend/src/app/(tabs)/index.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -13,6 +12,7 @@ import { BalanceCard } from '@/components/home/balance-card';
 import { TransactionRow } from '@/components/home/transaction-row';
 import { BillsCarousel } from '@/components/home/bill-carousel';
 import { SlideInView } from '@/components/shared/slide-in-view';
+import { ScrollEdgeFade } from '@/components/shared/scroll-edge-fade';
 
 // Placeholder data — shaped to match the backend HomeSummarySchema.
 // Swap for a real fetch once the API client exists.
@@ -56,7 +56,7 @@ const MOCK_DATA = {
       backgroundColor: '#F3E8BE',
     },
     {
-      bill_name: 'Youtube',
+      bill_name: 'Rent',
       amount: 213.42,
       days_remaining: 14,
       icon: 'logo-youtube',
@@ -64,7 +64,7 @@ const MOCK_DATA = {
       backgroundColor: '#F3D9D7',
     },
     {
-      bill_name: 'Spotify',
+      bill_name: 'Water',
       amount: 179.0,
       days_remaining: 10,
       icon: 'musical-notes',
@@ -72,7 +72,7 @@ const MOCK_DATA = {
       backgroundColor: '#D6EFDD',
     },
     {
-      bill_name: 'Netflix',
+      bill_name: 'Apple Music',
       amount: 499.0,
       days_remaining: 21,
       icon: 'play-circle',
@@ -80,7 +80,7 @@ const MOCK_DATA = {
       backgroundColor: '#F4D6D6',
     },
     {
-      bill_name: 'KPLC',
+      bill_name: 'Wifi',
       amount: 850.0,
       days_remaining: 30,
       icon: 'flash',
@@ -206,10 +206,10 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.transactionsSection}>
-                <Animated.ScrollView
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={false}
-                  style={styles.transactionList}
+                <ScrollEdgeFade
+                  height={190}
+                  fadeHeight={24}
+                  color="100, 100, 100"
                   contentContainerStyle={styles.transactionListContent}
                 >
                   {MOCK_DATA.recent_transactions.map((transaction, index) => (
@@ -221,7 +221,7 @@ export default function HomeScreen() {
                       emoji={index % 2 === 0 ? '🎪' : '🛒'}
                     />
                   ))}
-                </Animated.ScrollView>
+                </ScrollEdgeFade>
               </View>
             </View>
           </SlideInView>
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
 
   transactionsSection: {
-    backgroundColor: '#F8F5FF',
+    backgroundColor: '#f7f5fc',
     borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 16,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   },
 
   transactionList: {
-    height: 190,
+    minHeight: 190,
     flexGrow: 0,
   },
   transactionListContent: {

@@ -1,21 +1,27 @@
-// frontend/src/app/budget.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategorySection } from '@/components/budget/category-section';
 import { EditBudgetModal } from '@/components/budget/edit-budget-modal';
+import { EditCategoryModal } from '@/components/budget/edit-category-modal';
+import { EditLimitModal } from '@/components/budget/edit-limit-modal';
+import { JiggleLimit } from '@/components/budget/jiggle-card';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
-
-type BudgetItem = { icon: string; name: string; amount: string; backgroundColor: string };
+import {
+  BudgetItem,
+  BudgetSection,
+  formatAmount,
+  sumItems,
+} from '@/components/budget/budget-data';
+import { ConfirmDeleteModal } from '@/components/shared/confimr-delete';
 
 // Placeholder — swap for GET /api/v1/budgets grouped by category
-const SECTIONS: { title: string; total: string; items: BudgetItem[] }[] = [
+const INITIAL_SECTIONS: BudgetSection[] = [
   {
     title: 'Income',
-    total: 'Ksh 23,189.00',
     items: [
       { icon: '💼', name: 'Salary', amount: 'Ksh 342,492.00', backgroundColor: '#B8EBC5' },
       { icon: '💰', name: 'Side Hustle', amount: 'Ksh 52,492.00', backgroundColor: '#A8E6D8' },
@@ -24,7 +30,6 @@ const SECTIONS: { title: string; total: string; items: BudgetItem[] }[] = [
   },
   {
     title: 'The Essentials',
-    total: 'Ksh 23,189.00',
     items: [
       { icon: '🍽️', name: 'Food', amount: 'Ksh 23,189.00', backgroundColor: '#A8D8F0' },
       { icon: '🏠', name: 'Rent', amount: 'Ksh 15,000.00', backgroundColor: '#C8E8D8' },
@@ -36,7 +41,6 @@ const SECTIONS: { title: string; total: string; items: BudgetItem[] }[] = [
   },
   {
     title: 'Subscriptions',
-    total: 'Ksh 23,189.00',
     items: [
       { icon: '🎵', name: 'Spotify', amount: 'Ksh 129.00', backgroundColor: '#F0A8D8' },
       { icon: '▶️', name: 'Youtube', amount: 'Ksh 300.00', backgroundColor: '#F5C8E0' },
@@ -45,7 +49,6 @@ const SECTIONS: { title: string; total: string; items: BudgetItem[] }[] = [
   },
   {
     title: 'Savings & Investments',
-    total: 'Ksh 23,189.00',
     items: [
       { icon: '🐷', name: 'Mshwari', amount: 'Ksh 12,909.00', backgroundColor: '#B8EBC5' },
       { icon: '📈', name: 'NSE', amount: 'Ksh 300,324.00', backgroundColor: '#A8E6D8' },
@@ -54,7 +57,6 @@ const SECTIONS: { title: string; total: string; items: BudgetItem[] }[] = [
   },
   {
     title: 'Debt',
-    total: 'Ksh 23,189.00',
     items: [
       { icon: '🏦', name: 'KCB Loan', amount: 'Ksh 122,909.00', backgroundColor: '#F0A8A0' },
       { icon: '🏦', name: 'Equity Loan', amount: 'Ksh 124,909.00', backgroundColor: '#F5C8C0' },
@@ -65,11 +67,90 @@ const SECTIONS: { title: string; total: string; items: BudgetItem[] }[] = [
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
 
+const formatKsh = (n: number) =>
+  `KSh ${n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export default function BudgetScreen() {
   const router = useRouter();
   const [period, setPeriod] = useState('Weekly');
   const [editMode, setEditMode] = useState(false);
-  const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
+  const [sections, setSections] = useState(INITIAL_SECTIONS);
+  const [editor, setEditor] = useState<{ sectionTitle: string; item: BudgetItem | null } | null>(null);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [limit, setLimit] = useState(30000);
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
+
+  // names already used in the section being edited, minus the item's own name
+  const editingSection = sections.find((s) => s.title === editor?.sectionTitle);
+  const takenNames = (editingSection?.items ?? [])
+    .map((i) => i.name)
+    .filter((n) => n !== editor?.item?.name);
+
+  const [itemToDelete, setItemToDelete] = useState<{
+    sectionTitle: string;
+    item: BudgetItem;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  function saveItem(value: BudgetItem) {
+    if (!editor) return;
+    const editing = editor.item;
+    setSections((prev) =>
+      prev.map((section) => {
+        if (section.title !== editor.sectionTitle) return section;
+        return {
+          ...section,
+          items: editing
+            ? section.items.map((it) => (it.name === editing.name ? value : it)) // edit in place
+            : [...section.items, value], // new cards go at the end
+        };
+      })
+    );
+    // TODO: POST /api/v1/budgets (new) or PATCH (edit) once the API client exists
+  }
+
+  function renameSection(oldTitle: string, newTitle: string) {
+    const clash = sections.some(
+      (s) => s.title !== oldTitle && s.title.toLowerCase() === newTitle.toLowerCase()
+    );
+    if (clash) return; // titles are the list keys, so duplicates are ignored for now
+    setSections((prev) => prev.map((s) => (s.title === oldTitle ? { ...s, title: newTitle } : s)));
+    // TODO: PATCH /api/v1/categories/{id} once the API client exists
+  }
+
+  function deleteItem(
+    sectionTitle: string,
+    item: BudgetItem
+  ) {
+    setItemToDelete({ sectionTitle, item });
+  }
+
+  async function confirmDeleteItem() {
+    if (!itemToDelete) return;
+
+    const { sectionTitle, item } = itemToDelete;
+
+    try {
+      setIsDeleting(true);
+
+      // TODO: replace with DELETE /api/v1/budgets/{id}
+      setSections((previous) =>
+        previous.map((section) =>
+          section.title !== sectionTitle
+            ? section
+            : {
+                ...section,
+                items: section.items.filter(
+                  (existing) => existing.name !== item.name
+                ),
+              }
+        )
+      );
+    } finally {
+      setIsDeleting(false);
+      setItemToDelete(null);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -77,38 +158,84 @@ export default function BudgetScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
-        <DropdownPicker label="Period" options={PERIODS} selected={period} onSelect={setPeriod} />
+
+        <Text style={styles.title}>My Budget</Text>
+
         <TouchableOpacity onPress={() => setEditMode((v) => !v)}>
-          <Ionicons name={editMode ? 'checkmark' : 'pencil'} size={20} color="#3F2FD6" />
+          <Ionicons name={editMode ? 'checkmark' : 'pencil'} size={25} color="#2e0359" />
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.limitLabel}>
-        Spending Limit: <Text style={styles.limitAmount}>KSh 30,000.00</Text>
-      </Text>
+      <View style={styles.subHeader}>
+        <JiggleLimit
+          amount={formatKsh(limit)}
+          editMode={editMode}
+          onPress={() => setLimitModalOpen(true)}
+        />
+        <DropdownPicker
+          label="Period"
+          options={PERIODS}
+          selected={period}
+          onSelect={setPeriod}
+          disabled={!editMode}
+        />
+      </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        onScrollBeginDrag={() => editMode && undefined /* keep jiggle during scroll */}>
-        {SECTIONS.map((section) => (
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {sections.map((section, index) => (
           <CategorySection
             key={section.title}
             title={section.title}
-            total={section.total}
+            total={formatAmount(sumItems(section.items))}
             items={section.items}
             editMode={editMode}
-            onItemPress={setEditingItem}
+            index={index}
+            onItemPress={(item) => setEditor({ sectionTitle: section.title, item })}
+            onAddPress={() => setEditor({ sectionTitle: section.title, item: null })}
+            onTitlePress={() => setEditingCategory(section.title)}
+            onItemDelete={(item) => deleteItem(section.title, item)}
           />
         ))}
       </ScrollView>
 
       <EditBudgetModal
-        item={editingItem}
-        onClose={() => setEditingItem(null)}
-        onSave={(updated) => {
-          // TODO: PATCH /api/v1/budgets/{id} once wired to real data
-          console.log('saved', updated);
+        visible={!!editor}
+        item={editor?.item ?? null}
+        sectionTitle={editor?.sectionTitle}
+        takenNames={takenNames}
+        onClose={() => setEditor(null)}
+        onSave={saveItem}
+      />
+
+      <EditCategoryModal
+        visible={!!editingCategory}
+        currentTitle={editingCategory ?? ''}
+        onClose={() => setEditingCategory(null)}
+        onSave={(newTitle) => {
+          if (editingCategory) renameSection(editingCategory, newTitle);
+          setEditingCategory(null);
         }}
+      />
+
+      <EditLimitModal
+        visible={limitModalOpen}
+        currentLimit={limit}
+        onClose={() => setLimitModalOpen(false)}
+        onSave={(value) => {
+          setLimit(value);
+          // TODO: persist to the user's spending_limit once the API client exists
+        }}
+      />
+
+      <ConfirmDeleteModal
+        visible={!!itemToDelete}
+        title="Delete budget item?"
+        message={`Are you sure you want to delete “${
+          itemToDelete?.item.name ?? ''
+        }”?`}
+        loading={isDeleting}
+        onCancel={() => setItemToDelete(null)}
+        onConfirm={confirmDeleteItem}
       />
     </SafeAreaView>
   );
@@ -123,7 +250,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  limitLabel: { textAlign: 'center', fontSize: 15, fontWeight: '700', color: '#3F2FD6', marginBottom: 12 },
-  limitAmount: { fontWeight: '800' },
-  scroll: { paddingHorizontal: 16, paddingBottom: 100 },
+  title: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  subHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  scroll: { paddingHorizontal: 16, paddingVertical: 10, paddingBottom: 80 },
 });

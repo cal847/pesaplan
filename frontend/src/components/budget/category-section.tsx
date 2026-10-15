@@ -1,23 +1,32 @@
-// frontend/src/components/budget/category-section.tsx
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { JiggleCard } from './jiggle-card';
-
-type BudgetItem = { icon: string; name: string; amount: string; backgroundColor: string };
+import { JiggableHeader } from './jiggable-header';
+import { AddBudgetCard } from './add-budget-card';
+import type { BudgetItem } from './budget-data';
 
 type Props = {
   title: string;
   total: string;
   items: BudgetItem[];
   editMode: boolean;
+  index: number;
   onItemPress: (item: BudgetItem) => void;
+  onItemDelete: (item: BudgetItem) => void;
+  onAddPress: () => void;
+  onTitlePress: () => void;
 };
 
-export function CategorySection({ title, total, items, editMode, onItemPress }: Props) {
+export function CategorySection({ title, total, items, editMode, index, onItemPress, onItemDelete, onTitlePress, onAddPress }: Props) {
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <JiggableHeader 
+          title={title} 
+          editMode={editMode} 
+          index={index} 
+          onPress={onTitlePress} 
+        />
         <Text style={styles.sectionTotal}>{total}</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -31,8 +40,12 @@ export function CategorySection({ title, total, items, editMode, onItemPress }: 
             editMode={editMode}
             index={i}
             onPress={() => onItemPress(item)}
+            onDelete={() => onItemDelete(item)}
           />
         ))}
+        {editMode && (
+          <AddBudgetCard onPress={onAddPress} />
+        )}
       </ScrollView>
     </View>
   );
@@ -41,6 +54,6 @@ export function CategorySection({ title, total, items, editMode, onItemPress }: 
 const styles = StyleSheet.create({
   section: { marginBottom: 20 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  sectionTitle: { fontWeight: '700', fontSize: 15, fontStyle: 'italic' },
+  // sectionTitle: { fontWeight: '700', fontSize: 15, fontStyle: 'italic' },
   sectionTotal: { fontWeight: '600', fontSize: 13, color: '#333' },
 });

@@ -35,7 +35,6 @@ export default function AppTabs() {
       <Tabs.Screen
         name="budget"
         options={{
-          // styled as the elevated "+" circle, but navigates like a normal tab now
           tabBarIcon: ({ focused }) => (
             <View style={[styles.fab, focused && styles.fabFocused]}>
               <Ionicons name="add" size={30} color="#4B0082" />
@@ -63,7 +62,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#E4E0FB',
+    backgroundColor: '#d3ccf7',
     borderRadius: 30,
     marginHorizontal: 24,
     marginBottom: 30,

@@ -1,5 +1,3 @@
-// frontend/src/components/home/bills-carousel.tsx
-
 import { Ionicons } from '@expo/vector-icons';
 import { Dimensions, FlatList, StyleSheet } from 'react-native';
 import Animated, {
