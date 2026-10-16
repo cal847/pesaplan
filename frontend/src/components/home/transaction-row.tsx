@@ -3,11 +3,11 @@ import { StyleSheet, Text, View } from 'react-native';
 type Props = {
   merchantName: string;
   timestamp: string; // pre-formatted, e.g. "Wednesday, 10:15 AM"
-  amount: number;
+  amountText: string;
   emoji: string; // placeholder until real merchant icons exist
 };
 
-export function TransactionRow({ merchantName, timestamp, amount, emoji }: Props) {
+export function TransactionRow({ merchantName, timestamp, amountText, emoji }: Props) {
   return (
     <View style={styles.row}>
       <View style={styles.left}>
@@ -17,7 +17,7 @@ export function TransactionRow({ merchantName, timestamp, amount, emoji }: Props
           <Text style={styles.timestamp}>{timestamp}</Text>
         </View>
       </View>
-      <Text style={styles.amount}>-KSh {amount.toFixed(2)}</Text>
+      <Text style={styles.amount}>{amountText}</Text>
     </View>
   );
 }

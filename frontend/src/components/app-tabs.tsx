@@ -23,7 +23,7 @@ export default function AppTabs() {
         tabBarItemStyle: styles.item,
       }}>
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{ tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} /> }}
       />
       <Tabs.Screen

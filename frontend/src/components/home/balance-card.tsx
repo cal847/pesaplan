@@ -12,17 +12,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import React from 'react';
 
+import { formatKsh } from '@/lib/sms/money'; 
+
 type Props = {
-  balance: number;
+  balance: number | null;
+  caption?: string;
   received: number;
   spent: number;
 };
 
-function formatKsh(amount: number) {
-  return `Ksh ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
-export function BalanceCard({ balance, received, spent }: Props) {
+
+export function BalanceCard({ balance, received, spent, caption }: Props) {
   const shineX = useSharedValue(-120);
 
   React.useEffect(() => {
@@ -72,8 +73,11 @@ export function BalanceCard({ balance, received, spent }: Props) {
           />
         </Animated.View>
 
-      <Text style={styles.label}>Your Balance</Text>
-      <Text style={styles.balance}>{formatKsh(balance)}</Text>
+      <Text style={styles.label}>Budget Balance</Text>
+      <Text style={styles.balance}>
+        {balance === null ? 'Add your budget' : formatKsh(balance)}
+      </Text>
+      {/* {caption? <Text>{caption}</Text> : null} */}
 
       <View style={styles.row}>
         <View style={styles.statBlock}>

@@ -17,6 +17,8 @@ import {
   sumItems,
 } from '@/components/budget/budget-data';
 import { ConfirmDeleteModal } from '@/components/shared/confimr-delete';
+import { useSettingsStore } from '@/stores/settings-store';
+import type { SpendingPeriod } from '@/lib/period';
 
 // Placeholder — swap for GET /api/v1/budgets grouped by category
 const INITIAL_SECTIONS: BudgetSection[] = [
@@ -72,7 +74,10 @@ const formatKsh = (n: number) =>
 
 export default function BudgetScreen() {
   const router = useRouter();
-  const [period, setPeriod] = useState('Weekly');
+  const period = useSettingsStore((s) => s.spendingPeriod);
+  const setPeriod = useSettingsStore((s) => s.setSpendingPeriod);
+  const limitCents = useSettingsStore((s) => s.spendingLimitCents);
+  const setLimitCents = useSettingsStore((s) => s.setSpendingLimitCents);
   const [editMode, setEditMode] = useState(false);
   const [sections, setSections] = useState(INITIAL_SECTIONS);
   const [editor, setEditor] = useState<{ sectionTitle: string; item: BudgetItem | null } | null>(null);
@@ -155,7 +160,15 @@ export default function BudgetScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/home');
+            }
+          }}
+        >
           <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
 
@@ -168,7 +181,7 @@ export default function BudgetScreen() {
 
       <View style={styles.subHeader}>
         <JiggleLimit
-          amount={formatKsh(limit)}
+          amount={limitCents === null ? 'Not set' : formatKsh(limitCents / 100)}
           editMode={editMode}
           onPress={() => setLimitModalOpen(true)}
         />
@@ -176,7 +189,7 @@ export default function BudgetScreen() {
           label="Period"
           options={PERIODS}
           selected={period}
-          onSelect={setPeriod}
+          onSelect={(v) => setPeriod(v as SpendingPeriod)}
           disabled={!editMode}
         />
       </View>
@@ -219,7 +232,7 @@ export default function BudgetScreen() {
 
       <EditLimitModal
         visible={limitModalOpen}
-        currentLimit={limit}
+        currentLimit={(limitCents ?? 0) / 100}
         onClose={() => setLimitModalOpen(false)}
         onSave={(value) => {
           setLimit(value);
