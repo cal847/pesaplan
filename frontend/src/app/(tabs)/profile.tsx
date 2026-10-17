@@ -2,11 +2,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
 
 import { BackupSection } from '@/components/profile/backup-section';
 import { DisclosureRow, ROW_GUTTER } from '@/components/profile/disclosure-row';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
 import { ThemePreference, useSettingsStore } from '@/stores/settings-store';
+import { ExportModal } from '@/components/profile/export-modal';
+import { ImportPasteModal } from '@/components/profile/import-paste-modal';
 
 const COLORS = {
   background: '#F0EFF5',
@@ -88,6 +91,8 @@ export default function ProfileScreen() {
   const setThemePreference = useSettingsStore(
     (state) => state.setThemePreference
   );
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const lockEnabled = useSettingsStore((state) => state.lockEnabled);
   const setLockEnabled = useSettingsStore((state) => state.setLockEnabled);
@@ -159,8 +164,36 @@ export default function ProfileScreen() {
               />
             </View>
           </View>
-
           <Divider />
+          
+          <DisclosureRow label="Import" icon="download-outline" iconColor={COLORS.accent} labelStyle={styles.rowLabel}>
+            <Pressable style={styles.option} onPress={() => setPasteOpen(true)}>
+              <Ionicons name="clipboard-outline" size={18} color={COLORS.accent} />
+              <Text style={styles.optionLabel}>Paste messages</Text>
+            </Pressable>
+
+            <View style={[styles.option, styles.optionDisabled]}>
+              <Ionicons name="document-outline" size={18} color={COLORS.subtext} />
+              <View style={styles.optionText}>
+                <Text style={[styles.optionLabel, { color: COLORS.subtext }]}>Import statement (PDF)</Text>
+                <Text style={styles.rowHint}>Safaricom's password-protected statement</Text>
+              </View>
+              <View style={[styles.pill, { backgroundColor: COLORS.neutralPill }]}>
+                <Text style={[styles.pillText, { color: COLORS.subtext }]}>Soon</Text>
+              </View>
+            </View>
+          </DisclosureRow>
+          <Divider />          
+
+          <Pressable style={styles.row} onPress={() => setExportOpen(true)}>
+            <View style={styles.gutter}>
+              <Ionicons name="share-outline" size={18} color={COLORS.accent} />
+            </View>
+            <Text style={[styles.rowLabel, styles.rowText]}>Export</Text>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.subtext} />
+          </Pressable>
+          <Divider />
+
 
           <DisclosureRow label="Backup" icon='cloud-outline' labelStyle={styles.rowLabel}>
             <BackupSection />
@@ -242,6 +275,8 @@ export default function ProfileScreen() {
           ))}
         </View>
       </ScrollView>
+      <ImportPasteModal visible={pasteOpen} onClose={() => setPasteOpen(false)} />
+      <ExportModal visible={exportOpen} onClose={() => setExportOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -313,6 +348,9 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     color: COLORS.text,
   },
+
+  optionText: { flex: 1 },
+  optionDisabled: { opacity: 0.6 },
 
   row: {
     flexDirection: 'row',

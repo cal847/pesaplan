@@ -20,3 +20,8 @@ export function formatKsh(cents: number): string {
     maximumFractionDigits: 2,
   })}`;
 }
+
+export function centsToPlain(cents: number): string {
+  const abs = Math.abs(cents);
+  return `${cents < 0 ? '-' : ''}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+}

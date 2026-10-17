@@ -4,6 +4,12 @@ import { useEffect } from 'react';
 import { Appearance, useColorScheme } from 'react-native';
 
 import { useSettingsStore } from '@/stores/settings-store';
+import {
+  useFonts,
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-mono';
 
 // keeps the native splash up until the splash route says it's ready
 SplashScreen.preventAutoHideAsync();
@@ -11,12 +17,21 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const themePreference = useSettingsStore((s) => s.themePreference);
-
   // 'system' hands control back to the OS by passing null
   useEffect(() => {
     Appearance.setColorScheme(themePreference === 'system' ? null : themePreference);
   }, [themePreference]);
 
+  const [fontsLoaded] = useFonts({
+      IBMPlexMono_400Regular,
+      IBMPlexMono_500Medium,
+      IBMPlexMono_600SemiBold,
+    });
+
+    if (!fontsLoaded) {
+      return null;
+    }
+    
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>

@@ -1,4 +1,3 @@
-// frontend/src/components/profile/backup-section.tsx
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

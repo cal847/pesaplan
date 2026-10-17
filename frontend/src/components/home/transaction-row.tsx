@@ -11,7 +11,7 @@ export function TransactionRow({ merchantName, timestamp, amountText, emoji }: P
   return (
     <View style={styles.row}>
       <View style={styles.left}>
-        <Text style={styles.emoji}>{emoji}</Text>
+        {/* <Text style={styles.emoji}>{emoji}</Text> */}
         <View>
           <Text style={styles.merchant}>{merchantName}</Text>
           <Text style={styles.timestamp}>{timestamp}</Text>
@@ -27,8 +27,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 5,
     borderBottomWidth: 0.5,
     borderBottomColor: '#2b0c0c2f',
   },
@@ -42,8 +42,9 @@ const styles = StyleSheet.create({
   },
   merchant: {
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 13.5,
     color: '#1A1A1A',
+    fontFamily: 'IBMPlexMono_400Regular',
   },
   timestamp: {
     fontSize: 12,
@@ -51,8 +52,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   amount: {
-    fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13.5,
+    fontFamily: 'IBMPlexMono_400Regular',
     color: '#1A1A1A',
   },
 });

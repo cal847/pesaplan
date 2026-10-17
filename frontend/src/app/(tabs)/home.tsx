@@ -214,7 +214,7 @@ export default function HomeScreen() {
                   <ScrollEdgeFade
                     height={190}
                     fadeHeight={24}
-                    color="100, 100, 100"
+                    // color="100, 100, 100"
                     contentContainerStyle={styles.transactionListContent}>
                     {recent.map((tx) => (
                       <TransactionRow
@@ -271,25 +271,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    // marginVertical: 8,
+    paddingVertical: 15
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#08021a',
   },
   seeAll: {
     fontSize: 13,
     color: '#666666',
   },
-
+  empty: {
+    alignSelf: 'center'
+  },
   transactionsSection: {
     backgroundColor: '#f7f5fc',
-    borderRadius: 8,
-    paddingVertical: 16,
+    borderRadius: 12,
+    paddingBottom: 20,
+    paddingTop: 5,
     paddingHorizontal: 16,
-    borderWidth: 0.5,
-    marginHorizontal: -9,
+    borderWidth: 1,
+    marginHorizontal: -10,
     borderColor: '#2B0C0C2F',
   },
 
@@ -298,6 +302,6 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   transactionListContent: {
-    paddingBottom: 8,
+    paddingBottom: 80,
   },
 });

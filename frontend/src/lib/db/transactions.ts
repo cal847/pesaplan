@@ -128,3 +128,22 @@ export async function totalsBetween(db: Db, from: string, to: string): Promise<T
   );
   return row ?? { incomeCents: 0, expenseCents: 0, savingsCents: 0 };
 }
+
+// Lists transactions between a given range
+export function listBetween(db: Db, from: string, to: string) {
+  return db.getAllAsync<StoredTransaction>(
+    `SELECT ${COLUMNS} FROM transactions
+     WHERE occurred_at >= ? AND occurred_at < ?
+     ORDER BY occurred_at ASC, created_at ASC`,
+    [from, to]
+  );
+}
+
+// Counts transactions between a given range
+export async function countBetween(db: Db, from: string, to: string): Promise<number> {
+  const row = await db.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM transactions WHERE occurred_at >= ? AND occurred_at < ?`,
+    [from, to]
+  );
+  return row?.n ?? 0;
+}

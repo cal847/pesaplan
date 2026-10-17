@@ -16,7 +16,7 @@ import { formatKsh } from '@/lib/sms/money';
 
 type Props = {
   balance: number | null;
-  caption?: string;
+  // caption?: string;
   received: number;
   spent: number;
 };
