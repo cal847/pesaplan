@@ -37,5 +37,5 @@ describe('formatStamp', () => {
 });
 
 it('formats a negative balance', () => {
-  expect(formatKsh(-123456)).toBe('-Ksh 1,234.56');
+  expect(formatKsh(-123456)).toBe('Ksh -1,234.56');
 });

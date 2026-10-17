@@ -17,9 +17,12 @@ import { DropdownPicker } from '@/components/shared/dropdown-picker';
 import { StatCard } from '@/components/analytics/stat-card';
 import { DonutChart, Slice } from '@/components/analytics/donut-chart';
 import { CategoryList } from '@/components/analytics/category-list';
+import { useAnalytics } from '@/hooks/use-analytics';
+import { ANALYTICS_PERIODS, AnalyticsPeriod } from '@/lib/analytics/series';
+import { formatKsh } from '@/lib/sms/money';
+import { useSettingsStore } from '@/stores/settings-store';
 
-const VIEWS = ['Income vs Expense', 'Category Spending'];
-const PERIODS = ['Weekly', 'Monthly', 'Yearly'];
+const VIEWS = ['Income vs Expense'/*'Category Spending'*/];
 const CHART_TYPES_BY_VIEW: Record<string, string[]> = {
   'Income vs Expense': ['Bar Chart', 'Line Chart', 'Pie Chart'],
   'Category Spending': ['Bar Chart', 'Pie Chart'],
@@ -29,41 +32,9 @@ const CHART_TYPES_BY_VIEW: Record<string, string[]> = {
 const INCOME_COLOR = '#3F9FE0'; 
 const EXPENSE_COLOR = '#E8923F'; 
 
-// Colors for Pie Chart (Hardcoded in your slice definition)
+// Colors for Pie Chart in income_vs_expense
 const PIE_INCOME_COLOR = '#1038bc';
 const PIE_EXPENSE_COLOR = '#c9170e';
-
-const TREND: Record<string, { label: string; income: number; expense: number }[]> = {
-  Weekly: [
-    { label: 'Mon', income: 1200, expense: 800 },
-    { label: 'Tue', income: 0, expense: 450 },
-    { label: 'Wed', income: 3500, expense: 1200 },
-    { label: 'Thu', income: 0, expense: 300 },
-    { label: 'Fri', income: 2500, expense: 1800 },
-    { label: 'Sat', income: 600, expense: 2200 },
-    { label: 'Sun', income: 0, expense: 900 },
-  ],
-  Monthly: [
-    { label: 'W1', income: 15000, expense: 9200 },
-    { label: 'W2', income: 4000, expense: 7800 },
-    { label: 'W3', income: 22000, expense: 8800 },
-    { label: 'W4', income: 6500, expense: 7100 },
-  ],
-  Yearly: [
-    { label: 'J', income: 62000, expense: 48000 },
-    { label: 'F', income: 58000, expense: 52000 },
-    { label: 'M', income: 71000, expense: 55000 },
-    { label: 'A', income: 64000, expense: 50000 },
-    { label: 'M', income: 69000, expense: 61000 },
-    { label: 'J', income: 73000, expense: 58000 },
-    { label: 'J', income: 66000, expense: 54000 },
-    { label: 'A', income: 70000, expense: 63000 },
-    { label: 'S', income: 68000, expense: 57000 },
-    { label: 'O', income: 75000, expense: 66000 },
-    { label: 'N', income: 72000, expense: 59000 },
-    { label: 'D', income: 80000, expense: 71000 },
-  ],
-};
 
 type Category = { name: string; short: string; amount: number; color: string };
 
@@ -94,7 +65,6 @@ const CATEGORIES: Record<string, Category[]> = {
   ],
 };
 
-const formatKsh = (n: number) => `Ksh ${n.toLocaleString('en-KE')}`;
 const compact = (n: number) => (n >= 1000 ? `${+(n / 1000).toFixed(1)}k` : String(n));
 
 export default function AnalyticsScreen() {
@@ -106,12 +76,24 @@ export default function AnalyticsScreen() {
   const [chartType, setChartType] = useState('Bar Chart');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
+  const data = useAnalytics(period);
+  const spendingPeriod = useSettingsStore((s) => s.spendingPeriod);
+
   useEffect(() => setSelectedIndex(null), [view, period, chartType]);
 
   const isCategoryView = view === 'Category Spending';
-  const trend = TREND[period];
-  const totalIncome = trend.reduce((s, r) => s + r.income, 0);
-  const totalExpense = trend.reduce((s, r) => s + r.expense, 0);
+  const trend = useMemo(
+    () =>
+      (data?.points ?? []).map((p) => ({
+        label: p.label,
+        income: p.incomeCents / 100,
+        expense: p.expenseCents / 100,
+      })),
+    [data]
+  );
+
+  const totals = data?.totals;
+  const hasData = !!totals && (totals.incomeCents > 0 || totals.expenseCents > 0);
 
   const categories = useMemo(
     () => [...CATEGORIES[period]].sort((a, b) => b.amount - a.amount),
@@ -122,8 +104,8 @@ export default function AnalyticsScreen() {
   const slices: Slice[] = isCategoryView
     ? categories.map((c) => ({ label: c.name, value: c.amount, color: c.color }))
     : [
-        { label: 'Income', value: totalIncome, color: PIE_INCOME_COLOR },
-        { label: 'Expense', value: totalExpense, color: PIE_EXPENSE_COLOR },
+        { label: 'Income', value: totals?.incomeCents ?? 0, color: PIE_INCOME_COLOR },
+        { label: 'Expense', value: totals?.expenseCents ?? 0, color: PIE_EXPENSE_COLOR },
       ];
 
   const chartWidth = width - 90;
@@ -171,7 +153,9 @@ export default function AnalyticsScreen() {
     }
     
     const unit = chartWidth / trend.length;
-    const barWidth = 15;
+
+    // Allows bar width to adjust as periods get longer
+    const barWidth = Math.max(5, Math.min(15, Math.floor(unit * 0.3)));
     const innerGap = 2;
     const groupGap = Math.max(4, unit - 2 * barWidth - innerGap);
 
@@ -227,6 +211,14 @@ export default function AnalyticsScreen() {
   const legendIncomeColor = chartType === 'Pie Chart' ? PIE_INCOME_COLOR : INCOME_COLOR;
   const legendExpenseColor = chartType === 'Pie Chart' ? PIE_EXPENSE_COLOR : EXPENSE_COLOR;
 
+  // For budget card stats
+  const budget = data?.budget;
+  const budgetValue = !budget
+    ? '—'
+    : budget.limitCents === null
+      ? 'No limit set'
+      : formatKsh(budget.spentCents);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -260,9 +252,9 @@ export default function AnalyticsScreen() {
             <View style={styles.filterGroup}>
               <DropdownPicker
                 label="Period"
-                options={PERIODS}
+                options={ANALYTICS_PERIODS}
                 selected={period}
-                onSelect={setPeriod}
+                onSelect={(v) => setPeriod(v as AnalyticsPeriod)}
               />
 
               <DropdownPicker
@@ -275,7 +267,9 @@ export default function AnalyticsScreen() {
           </View>
 
           <View style={styles.chartArea}>
-            {chartType === 'Pie Chart' ? (
+            {data === null ? null : !hasData ? (
+              <Text style={styles.empty}>No income or spending recorded in this period.</Text>
+            ): chartType === 'Pie Chart' ? (
               <DonutChart
                 key={`${view}-${period}`}
                 slices={slices}
@@ -319,14 +313,14 @@ export default function AnalyticsScreen() {
               <StatCard
                 icon="arrow-down"
                 label="You've Received"
-                value={formatKsh(totalIncome)}
+                value={formatKsh(totals?.incomeCents ?? 0)}
                 colors={['#6FC8E8', '#3F9FE0']}
                 labelStyle={styles.receivedLabel}
                 valueStyle={styles.receivedValue}              />
               <StatCard
                 icon="arrow-up"
                 label="You've Spent"
-                value={formatKsh(totalExpense)}
+                value={formatKsh(totals?.expenseCents ?? 0)}
                 colors={['#F2C14E', '#E8923F']}
                 labelStyle={styles.spentLabel}
                 valueStyle={styles.spentValue}
@@ -336,9 +330,9 @@ export default function AnalyticsScreen() {
               <StatCard
                 icon="arrow-down-circle"
                 label="Budget Spent"
-                value="KSh 23,139.38"
+                value={budgetValue}
                 colors={['#8DD98D', '#4CAF50']}
-                progressPercent={35}
+                progressPercent={budget?.percent ?? undefined}
                 labelStyle={styles.budgetLabel}
                 valueStyle={styles.budgetValue}
                 progressFillStyle={styles.budgetProgressFill}

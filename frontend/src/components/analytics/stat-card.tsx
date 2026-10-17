@@ -1,4 +1,3 @@
-// frontend/src/components/analytics/stat-card.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';

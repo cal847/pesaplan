@@ -147,3 +147,19 @@ export async function countBetween(db: Db, from: string, to: string): Promise<nu
   );
   return row?.n ?? 0;
 }
+
+export type DailyTotals = { day: string; incomeCents: number; expenseCents: number };
+
+// Calculates income and expense per day.
+export function dailyTotalsBetween(db: Db, from: string, to: string) {
+  return db.getAllAsync<DailyTotals>(
+    `SELECT substr(occurred_at, 1, 10) AS day,
+       COALESCE(SUM(CASE WHEN type = 'income'  THEN amount_cents END), 0) AS incomeCents,
+       COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents END), 0) AS expenseCents
+     FROM transactions
+     WHERE occurred_at >= ? AND occurred_at < ?
+     GROUP BY day
+     ORDER BY day`,
+    [from, to]
+  );
+}
