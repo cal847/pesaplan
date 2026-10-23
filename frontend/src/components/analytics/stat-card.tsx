@@ -6,8 +6,9 @@ type Props = {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
-  colors: [string, string];
+  colors: [string, string, string, string];
   progressPercent?: number;
+  gradientLocations?: [number, number, number, number];
 
   // Per-card style overrides
   cardStyle?: StyleProp<ViewStyle>;

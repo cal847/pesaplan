@@ -28,13 +28,13 @@ const CHART_TYPES_BY_VIEW: Record<string, string[]> = {
   'Category Spending': ['Bar Chart', 'Pie Chart'],
 };
 
-// Colors for Bar/Line Charts
-const INCOME_COLOR = '#3F9FE0'; 
-const EXPENSE_COLOR = '#E8923F'; 
+// Match the bright cyan and amber used by the income and expense stat cards.
+const INCOME_COLOR = '#3FBCE3';
+const EXPENSE_COLOR = '#F8B64D';
 
 // Colors for Pie Chart in income_vs_expense
-const PIE_INCOME_COLOR = '#1038bc';
-const PIE_EXPENSE_COLOR = '#c9170e';
+const INCOME_COLOR_2 = '#1038bc';
+const EXPENSE_COLOR_2 = '#c9170e';
 
 type Category = { name: string; short: string; amount: number; color: string };
 
@@ -104,8 +104,8 @@ export default function AnalyticsScreen() {
   const slices: Slice[] = isCategoryView
     ? categories.map((c) => ({ label: c.name, value: c.amount, color: c.color }))
     : [
-        { label: 'Income', value: totals?.incomeCents ?? 0, color: PIE_INCOME_COLOR },
-        { label: 'Expense', value: totals?.expenseCents ?? 0, color: PIE_EXPENSE_COLOR },
+        { label: 'Income', value: totals?.incomeCents ?? 0, color: INCOME_COLOR_2 },
+        { label: 'Expense', value: totals?.expenseCents ?? 0, color: EXPENSE_COLOR_2 },
       ];
 
   const chartWidth = width - 90;
@@ -182,10 +182,10 @@ export default function AnalyticsScreen() {
       <LineChart
         data={trend.map((r) => ({ value: r.income, label: r.label }))}
         data2={trend.map((r) => ({ value: r.expense }))}
-        color1={INCOME_COLOR}
-        color2={EXPENSE_COLOR}
-        dataPointsColor1={INCOME_COLOR}
-        dataPointsColor2={EXPENSE_COLOR}
+        color1={INCOME_COLOR_2}
+        color2={EXPENSE_COLOR_2}
+        dataPointsColor1={INCOME_COLOR_2}
+        dataPointsColor2={EXPENSE_COLOR_2}
         dataPointsRadius={n > 8 ? 2 : 4}
         thickness={1}
         width={chartWidth}
@@ -208,8 +208,8 @@ export default function AnalyticsScreen() {
   }
 
   // Determine legend colors based on current chart type
-  const legendIncomeColor = chartType === 'Pie Chart' ? PIE_INCOME_COLOR : INCOME_COLOR;
-  const legendExpenseColor = chartType === 'Pie Chart' ? PIE_EXPENSE_COLOR : EXPENSE_COLOR;
+  const legendIncomeColor = chartType === 'Pie Chart' ? INCOME_COLOR_2 : INCOME_COLOR;
+  const legendExpenseColor = chartType === 'Pie Chart' ? EXPENSE_COLOR_2 : EXPENSE_COLOR;
 
   // For budget card stats
   const budget = data?.budget;
@@ -311,17 +311,20 @@ export default function AnalyticsScreen() {
           <Animated.View key="grid" entering={FadeInDown.duration(250)} style={styles.grid}>
             <View style={styles.gridRow}>
               <StatCard
-                icon="arrow-down"
+                icon="arrow-up"
                 label="You've Received"
                 value={formatKsh(totals?.incomeCents ?? 0)}
-                colors={['#6FC8E8', '#3F9FE0']}
+                colors={['#3FBCE3', '#67CAE8', '#7FDFFC', '#25B8E5']}
+                gradientLocations={[0, 0.43, 0.56, 1]}
                 labelStyle={styles.receivedLabel}
-                valueStyle={styles.receivedValue}              />
+                valueStyle={styles.receivedValue}
+              />
               <StatCard
-                icon="arrow-up"
+                icon="arrow-down"
                 label="You've Spent"
                 value={formatKsh(totals?.expenseCents ?? 0)}
-                colors={['#F2C14E', '#E8923F']}
+                colors={['#F8B64D', '#EBB867', '#F4C476', '#E99E27']}
+                gradientLocations={[0, 0.43, 0.56, 1]}
                 labelStyle={styles.spentLabel}
                 valueStyle={styles.spentValue}
               />
@@ -331,7 +334,8 @@ export default function AnalyticsScreen() {
                 icon="arrow-down-circle"
                 label="Budget Spent"
                 value={budgetValue}
-                colors={['#8DD98D', '#4CAF50']}
+                colors={['#6DFA3A', '#76E04F', '#7CE357', '#56C42E']}
+                gradientLocations={[0, 0.35, 0.56, 1]}
                 progressPercent={budget?.percent ?? undefined}
                 labelStyle={styles.budgetLabel}
                 valueStyle={styles.budgetValue}
@@ -341,7 +345,8 @@ export default function AnalyticsScreen() {
                 icon="disc"
                 label="Goals Achieved"
                 value="3 Out of 4"
-                colors={['#C98DE8', '#9B4FE0']}
+                colors={['#B234D4', '#D662F7', '#D168EE', '#961EB7']}
+                gradientLocations={[0, 0.35, 0.56, 1]}
                 progressPercent={75}
                 labelStyle={styles.goalsLabel}
                 valueStyle={styles.goalsValue}

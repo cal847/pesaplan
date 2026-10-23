@@ -4,6 +4,7 @@ import { JiggleCard } from './jiggle-card';
 import { JiggableHeader } from './jiggable-header';
 import { AddBudgetCard } from './add-budget-card';
 import type { BudgetItem } from './budget-data';
+import { formatKsh } from '@/lib/sms/money'; 
 
 type Props = {
   title: string;
@@ -32,10 +33,10 @@ export function CategorySection({ title, total, items, editMode, index, onItemPr
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {items.map((item, i) => (
           <JiggleCard
-            key={item.name}
+            key={item.id}
             icon={item.icon}
             name={item.name}
-            amount={item.amount}
+            amount={formatKsh(item.amountCents)}
             backgroundColor={item.backgroundColor}
             editMode={editMode}
             index={i}
