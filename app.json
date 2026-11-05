@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.anonymous.pesaplan"
+  },
+  "plugins": [
+    "expo-secure-store"
+  ]
+}

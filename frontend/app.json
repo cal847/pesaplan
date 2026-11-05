@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.frontend"
     },
     "web": {
       "output": "static",
@@ -31,6 +32,16 @@
           "backgroundColor": "#F5F3FF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 120
+        }
+      ],
+      [
+        "expo-secure-store",
+        { "faceIDPermission": "PesaPlan uses Face ID to unlock the app."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "PesaPlan uses Face ID to unlock the app."
         }
       ],
       "expo-font",

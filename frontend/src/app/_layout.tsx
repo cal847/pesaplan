@@ -2,14 +2,15 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { Appearance, useColorScheme } from 'react-native';
-
-import { useSettingsStore } from '@/stores/settings-store';
 import {
   useFonts,
   IBMPlexMono_400Regular,
   IBMPlexMono_500Medium,
   IBMPlexMono_600SemiBold,
 } from '@expo-google-fonts/ibm-plex-mono';
+
+import { useSettingsStore } from '@/stores/settings-store';
+import { LockGate } from '@/components/lock/lock-gate';
 
 // keeps the native splash up until the splash route says it's ready
 SplashScreen.preventAutoHideAsync();
@@ -34,13 +35,15 @@ export default function RootLayout() {
     
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-        {/* no swipe-back into the splash, and a fade into the app */}
-        <Stack.Screen name="index" options={{ animation: 'fade', gestureEnabled: false }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
-        <Stack.Screen name="all-subscriptions" />
-        <Stack.Screen name="all-transactions" />
-      </Stack>
+      <LockGate>
+        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+          {/* no swipe-back into the splash, and a fade into the app */}
+          <Stack.Screen name="index" options={{ animation: 'fade', gestureEnabled: false }} />
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
+          <Stack.Screen name="all-subscriptions" />
+          <Stack.Screen name="all-transactions" />
+        </Stack>
+      </LockGate>
     </ThemeProvider>
   );
 }
