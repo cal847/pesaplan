@@ -1,1 +1,27 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+
+# Python virtual environments and caches
+myenv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage/
+
+# Expo / React Native
+.expo/
+.expo-shared/
+
+# Logs
+*.log
+
+# OS/editor files
+.DS_Store
+Thumbs.db

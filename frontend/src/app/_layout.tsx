@@ -1,3 +1,4 @@
+import './debug-appearance';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -18,9 +19,13 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const themePreference = useSettingsStore((s) => s.themePreference);
-  // 'system' hands control back to the OS by passing null
+  // system hands control back to the OS by passing null
   useEffect(() => {
-    Appearance.setColorScheme(themePreference === 'system' ? null : themePreference);
+    Appearance.setColorScheme(
+      themePreference === 'light' || themePreference === 'dark'
+        ? themePreference
+        : 'unspecified'
+    );
   }, [themePreference]);
 
   const [fontsLoaded] = useFonts({
