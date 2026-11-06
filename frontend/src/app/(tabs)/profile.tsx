@@ -1,12 +1,19 @@
 // frontend/src/app/(tabs)/profile.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
 
 import { BackupSection } from '@/components/profile/backup-section';
 import { DisclosureRow, ROW_GUTTER } from '@/components/profile/disclosure-row';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
 import { ThemePreference, useSettingsStore } from '@/stores/settings-store';
+import { ExportModal } from '@/components/profile/export-modal';
+import { ImportPasteModal } from '@/components/profile/import-paste-modal';
+import { DonateNumber } from '@/components/profile/donate-number';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PermissionId, pillLabel, tapAction } from '@/lib/permissions';
+import { LockSettings } from '@/components/lock/lock-settings';
 
 const COLORS = {
   background: '#F0EFF5',
@@ -33,36 +40,15 @@ const INITIALS = USER.name
   .join('')
   .toUpperCase();
 
-type Permission = {
-  id: string;
+const PERMISSION_META: {
+  id: PermissionId;
   icon: keyof typeof Ionicons.glyphMap;
   name: string;
   description: string;
-  granted: boolean;
-};
-
-const PERMISSIONS: Permission[] = [
-  {
-    id: 'sms',
-    icon: 'chatbubble-ellipses-outline',
-    name: 'SMS',
-    description: 'Read M-Pesa messages to import transactions',
-    granted: true,
-  },
-  {
-    id: 'notifications',
-    icon: 'notifications-outline',
-    name: 'Notifications',
-    description: 'Budget alerts and bill reminders',
-    granted: true,
-  },
-  {
-    id: 'biometrics',
-    icon: 'finger-print-outline',
-    name: 'Biometrics',
-    description: 'Unlock the app with fingerprint or face',
-    granted: false,
-  },
+}[] = [
+  { id: 'sms', icon: 'chatbubble-ellipses-outline', name: 'SMS', description: 'Read M-Pesa messages to import transactions' },
+  { id: 'notifications', icon: 'notifications-outline', name: 'Notifications', description: 'Budget alerts and bill reminders' },
+  { id: 'biometrics', icon: 'finger-print-outline', name: 'Biometrics', description: 'Fingerprint or face unlock on this device' },
 ];
 
 const THEME_LABELS: Record<ThemePreference, string> = {
@@ -88,9 +74,17 @@ export default function ProfileScreen() {
   const setThemePreference = useSettingsStore(
     (state) => state.setThemePreference
   );
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
-  const lockEnabled = useSettingsStore((state) => state.lockEnabled);
-  const setLockEnabled = useSettingsStore((state) => state.setLockEnabled);
+  const { items, request } = usePermissions();
+
+  async function onPermissionPress(id: PermissionId) {
+    const info = items?.find((p) => p.id === id);
+    if (!info) return;
+    if (tapAction(info) === 'request') await request(id);
+    else await Linking.openSettings();
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -108,34 +102,7 @@ export default function ProfileScreen() {
 
         <View style={styles.card}>
           {/* App lock */}
-          <View style={styles.row}>
-            <View style={styles.gutter}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={18}
-                color={COLORS.accent}
-              />
-            </View>
-
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>App lock</Text>
-              <Text style={styles.rowHint}>
-                Require biometrics to open the app
-              </Text>
-            </View>
-
-            <Switch
-              value={lockEnabled}
-              onValueChange={setLockEnabled}
-              trackColor={{
-                false: COLORS.divider,
-                true: COLORS.accent,
-              }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          <Divider />
+          <LockSettings />
 
           <View style={styles.row}>
             <View style={styles.gutter}>
@@ -159,8 +126,36 @@ export default function ProfileScreen() {
               />
             </View>
           </View>
-
           <Divider />
+          
+          <DisclosureRow label="Import" icon="download-outline" iconColor={COLORS.accent} labelStyle={styles.rowLabel}>
+            <Pressable style={styles.option} onPress={() => setPasteOpen(true)}>
+              <Ionicons name="clipboard-outline" size={18} color={COLORS.accent} />
+              <Text style={styles.optionLabel}>Paste messages</Text>
+            </Pressable>
+
+            <View style={[styles.option, styles.optionDisabled]}>
+              <Ionicons name="document-outline" size={18} color={COLORS.subtext} />
+              <View style={styles.optionText}>
+                <Text style={[styles.optionLabel, { color: COLORS.subtext }]}>Import statement (PDF)</Text>
+                <Text style={styles.rowHint}>Safaricom's password-protected statement</Text>
+              </View>
+              <View style={[styles.pill, { backgroundColor: COLORS.neutralPill }]}>
+                <Text style={[styles.pillText, { color: COLORS.subtext }]}>Soon</Text>
+              </View>
+            </View>
+          </DisclosureRow>
+          <Divider />          
+
+          <Pressable style={styles.row} onPress={() => setExportOpen(true)}>
+            <View style={styles.gutter}>
+              <Ionicons name="share-outline" size={18} color={COLORS.accent} />
+            </View>
+            <Text style={[styles.rowLabel, styles.rowText]}>Export</Text>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.subtext} />
+          </Pressable>
+          <Divider />
+
 
           <DisclosureRow label="Backup" icon='cloud-outline' labelStyle={styles.rowLabel}>
             <BackupSection />
@@ -171,6 +166,7 @@ export default function ProfileScreen() {
             <Text style={styles.rowHint}>
               Support the development of PesaPlan.
             </Text>
+            <DonateNumber/>
 
             <Pressable
               style={styles.option}
@@ -191,57 +187,35 @@ export default function ProfileScreen() {
         <Text style={styles.sectionLabel}>Permissions</Text>
 
         <View style={styles.card}>
-          {PERMISSIONS.map((permission, index) => (
-            <View key={permission.id}>
-              {index > 0 && <Divider />}
-
-              <Pressable
-                style={styles.row}
-                onPress={() => Linking.openSettings()}
-              >
-                <View style={styles.gutter}>
-                  <Ionicons
-                    name={permission.icon}
-                    size={18}
-                    color={COLORS.accent}
-                  />
-                </View>
-
-                <View style={styles.rowText}>
-                  <Text style={styles.rowLabel}>{permission.name}</Text>
-                  <Text style={styles.rowHint}>
-                    {permission.description}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.pill,
-                    {
-                      backgroundColor: permission.granted
-                        ? COLORS.successSoft
-                        : COLORS.neutralPill,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.pillText,
-                      {
-                        color: permission.granted
-                          ? COLORS.success
-                          : COLORS.subtext,
-                      },
-                    ]}
-                  >
-                    {permission.granted ? 'Granted' : 'Off'}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-          ))}
+          {PERMISSION_META.map((meta, index) => {
+            const info = items?.find((p) => p.id === meta.id);
+            const granted = info?.state === 'granted';
+            return (
+              <View key={meta.id}>
+                {index > 0 && <Divider />}
+                <Pressable style={styles.row} onPress={() => onPermissionPress(meta.id)}>
+                  <View style={styles.gutter}>
+                    <Ionicons name={meta.icon} size={18} color={COLORS.accent} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowLabel}>{meta.name}</Text>
+                    <Text style={styles.rowHint}>{meta.description}</Text>
+                  </View>
+                  {info && (
+                    <View style={[styles.pill, { backgroundColor: granted ? COLORS.successSoft : COLORS.neutralPill }]}>
+                      <Text style={[styles.pillText, { color: granted ? COLORS.success : COLORS.subtext }]}>
+                        {pillLabel(meta.id, info.state)}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
+      <ImportPasteModal visible={pasteOpen} onClose={() => setPasteOpen(false)} />
+      <ExportModal visible={exportOpen} onClose={() => setExportOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -313,6 +287,9 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     color: COLORS.text,
   },
+
+  optionText: { flex: 1 },
+  optionDisabled: { opacity: 0.6 },
 
   row: {
     flexDirection: 'row',

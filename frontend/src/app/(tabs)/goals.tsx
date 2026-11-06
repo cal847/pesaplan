@@ -45,7 +45,15 @@ export default function GoalsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/home');
+            }
+          }}
+        >
           <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
 

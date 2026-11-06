@@ -11,6 +11,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 
 export function useJiggle(active: boolean, index: number, amplitude = 1.5) {
   const rotation = useSharedValue(0);
@@ -90,7 +91,7 @@ export function JiggleCard({
           style={[styles.cardContent, animatedContentStyle]}
         >
           <View style={styles.cardHeader}>
-            <Text style={styles.icon}>{icon}</Text>
+            <Ionicons name={icon} size={20} color="#1A1A1A" />
             <Text style={styles.name}>{name}</Text>
           </View>
 

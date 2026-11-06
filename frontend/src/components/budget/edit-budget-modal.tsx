@@ -11,7 +11,8 @@ import {
   View,
 } from 'react-native';
 
-import { BudgetItem, formatAmount, parseAmount } from './budget-data';
+import { BudgetItem, BudgetItemInput } from './budget-data';   // drop formatAmount and parseAmount
+import { centsToPlain, formatKsh, kshToCents } from '@/lib/sms/money';
 
 const EMOJIS = [
   '🍽️', '🏠', '💧', '⚡', '📶', '🚌', '🛒', '🎬', '🎵', '▶️', '💼', '💰',
@@ -29,8 +30,25 @@ type Props = {
   sectionTitle?: string;
   takenNames: string[];
   onClose: () => void;
-  onSave: (value: BudgetItem) => void;
+  onSave: (value: BudgetItemInput) => void;
 };
+
+function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    year >= 1000 &&
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
 
 export function EditBudgetModal({ visible, item, sectionTitle, takenNames, onClose, onSave }: Props) {
   const [heading, setHeading] = useState('');
@@ -39,13 +57,18 @@ export function EditBudgetModal({ visible, item, sectionTitle, takenNames, onClo
   const [icon, setIcon] = useState(EMOJIS[0]);
   const [color, setColor] = useState(COLORS[0]);
 
+  const [dueDate, setDueDate] = useState('');
+  const isSubscription =
+    sectionTitle?.trim().toLowerCase() === 'subscriptions';
+
   useEffect(() => {
     if (!visible) return;
     setHeading(item ? `Edit ${item.name}` : `Add to ${sectionTitle ?? 'category'}`);
     setName(item?.name ?? '');
-    setAmount(item ? String(parseAmount(item.amount)) : '');
+    setAmount(item ? String(centsToPlain(item.amountCents)) : '');
     setIcon(item?.icon ?? EMOJIS[0]);
     setColor(item?.backgroundColor ?? COLORS[0]);
+    setDueDate(item?.dueDate ?? '');
   }, [visible]);
 
   function handleAmount(raw: string) {
@@ -59,11 +82,17 @@ export function EditBudgetModal({ visible, item, sectionTitle, takenNames, onClo
   const trimmed = name.trim();
   const value = parseFloat(amount);
   const duplicate = takenNames.some((n) => n.toLowerCase() === trimmed.toLowerCase());
-  const valid = trimmed.length > 0 && Number.isFinite(value) && value > 0 && !duplicate;
+  const dateValid =
+    !isSubscription ||
+    dueDate.trim() === '' ||
+    isValidDate(dueDate.trim());
+
+  const valid = trimmed.length > 0 && Number.isFinite(value) && value > 0 && !duplicate && dateValid;
+  
 
   function submit() {
     if (!valid) return;
-    onSave({ icon, name: trimmed, amount: formatAmount(value), backgroundColor: color });
+    onSave({ icon, name: trimmed, amountCents: kshToCents(amount), backgroundColor: color, dueDate: isSubscription? dueDate.trim() || null: null, });
     onClose();
   }
 
@@ -84,7 +113,7 @@ export function EditBudgetModal({ visible, item, sectionTitle, takenNames, onClo
                 {trimmed || 'Name'}
               </Text>
               <Text style={styles.previewAmount}>
-                {formatAmount(Number.isFinite(value) ? value : 0)}
+                {formatKsh(kshToCents(amount || '0'))}
               </Text>
             </View>
 
@@ -131,7 +160,39 @@ export function EditBudgetModal({ visible, item, sectionTitle, takenNames, onClo
                 />
               ))}
             </View>
+            {/* Only show for subscriptions */}
+            {isSubscription && (
+              <View>
+                <Text style={styles.label}>
+                  Due Date (Optional)
+                </Text>
 
+                <TextInput
+                  style={[
+                    styles.input,
+                    dueDate.length > 0 &&
+                      !dateValid &&
+                      styles.inputError,
+                  ]}
+                  value={dueDate}
+                  onChangeText={setDueDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#AAA"
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
+                />
+
+                <Text style={styles.dateHint}>
+                  Enter the next payment date, e.g. 2026-11-15
+                </Text>
+
+                {!dateValid && (
+                  <Text style={styles.error}>
+                    Please enter a valid date (YYYY-MM-DD).
+                  </Text>
+                )}
+              </View>
+            )}
             <Pressable
               style={[styles.saveButton, !valid && styles.saveDisabled]}
               disabled={!valid}
@@ -177,6 +238,15 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 22 },
   swatch: { width: 34, height: 34, borderRadius: 17, borderWidth: 3, borderColor: 'transparent' },
   swatchActive: { borderColor: '#4B0082' },
+  inputError: {
+    borderColor: '#D6393F',
+  },
+
+  dateHint: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 5,
+  },
   saveButton: {
     backgroundColor: '#0c8e05b9',
     borderRadius: 20,
