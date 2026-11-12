@@ -167,6 +167,19 @@ const MIGRATIONS: string[] = [
     )
   );
   `,
+
+  //v5: Include SIM tagging to support dual sim phones.
+  `
+  ALTER TABLE transactions
+  ADD COLUMN sim_key TEXT NOT NULL DEFAULT 'unknown'
+
+  CREATE TABLE sims (
+    sim_key TEXT PRIMARY KEY NOT NULL,
+    slot INTERGER,
+    label TEXT NOT NULL,
+    last_seen INTEGER NOT NULL
+  );
+  `
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {
