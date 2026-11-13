@@ -6,6 +6,7 @@ export type RawSms = {
   body: string;
   date: number; // epoch ms
   simSlot: number; // 0 = SIM 1, 1 = SIM 2, -1 = unknown
+  subscriptionId: number; // 1 = SIM 1, 2 = SIM 2, -1 = unknown
 };
 
 type Native = { 
@@ -15,8 +16,9 @@ type Native = {
 // Expo Go, iOS and older builds have no native module. The app still works there, with paste only.
 const native: Native | null = (() => {
   try {
-    return requireNativeModule<Native>('SmsInbox');
-  } catch {
+    return requireNativeModule<Native>('SmsReader');
+  } catch (error) {
+    console.error('[SmsInbox] Failed to load native module:', error);
     return null;
   }
 })();

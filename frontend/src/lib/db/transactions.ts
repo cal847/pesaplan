@@ -110,27 +110,45 @@ export function listTransactions(
   db: Db,
   { limit = 20, offset = 0, type, simKey }: { limit?: number; offset?: number; type?: TransactionType; simKey?: string } = {}
 ) {
+  const filters: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (type) {
+    filters.push('type = ?');
+    params.push(type);
+  }
+  if (simKey) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
   return db.getAllAsync<StoredTransaction>(
     // If 'type' exists, use WHERE type=? AND sim_key=?
     // If 'type' is missing, use WHERE sim_key=?
     `SELECT ${COLUMNS} FROM transactions
-     ${type ? 'WHERE type = ? AND sim_key = ?' : 'WHERE sim_key = ?'}
+     ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
      ORDER BY occurred_at DESC, created_at DESC
      LIMIT ? OFFSET ?`,
-    type ? [type, simKey, limit, offset] : [simKey, limit, offset]
+    [...params, limit, offset]
   );
 }
 
 /** Totals. Expense amounts already include the M-Pesa fee. */
 export async function totalsBetween(db: Db, from: string, to: string, simKey: string): Promise<Totals> {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?', 'sim_key = ?'];
+  const params: (string | number)[] = [from, to];
+
+  if (simKey !== undefined) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
   const row = await db.getFirstAsync<Totals>(
     `SELECT
        COALESCE(SUM(CASE WHEN type = 'income'  THEN amount_cents END), 0) AS incomeCents,
        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents END), 0) AS expenseCents,
        COALESCE(SUM(CASE WHEN type = 'savings' THEN amount_cents END), 0) AS savingsCents
      FROM transactions
-     WHERE occurred_at >= ? AND occurred_at < ? AND sim_key = ?`,
-    [from, to, simKey]
+     WHERE ${filters.join(' AND ')}`,
+    params
   );
   return row ?? { incomeCents: 0, expenseCents: 0, savingsCents: 0 };
 }
@@ -158,14 +176,21 @@ export type DailyTotals = { day: string; incomeCents: number; expenseCents: numb
 
 // Calculates income and expense per day.
 export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: string) {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?', 'sim_key = ?'];
+  const params: (string | number)[] = [from, to];
+  if (simKey !== undefined) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
+
   return db.getAllAsync<DailyTotals>(
     `SELECT substr(occurred_at, 1, 10) AS day,
        COALESCE(SUM(CASE WHEN type = 'income'  THEN amount_cents END), 0) AS incomeCents,
        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents END), 0) AS expenseCents
      FROM transactions
-     WHERE occurred_at >= ? AND occurred_at < ? AND sim_key = ?
+     WHERE ${filters.join(' AND ')}
      GROUP BY day
      ORDER BY day`,
-    [from, to, simKey]
+    params
   );
 }

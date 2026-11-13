@@ -1,98 +1,54 @@
-// frontend/src/lib/sms/auto-import.ts
-import { Alert, PermissionsAndroid, Platform, ToastAndroid } from 'react-native';
+// frontend/src/lib/sms/inbox.test.ts
+import { defaultSimLabel, RawSms, simKeyFor, toCandidates } from './inbox';
 
-import { getDb } from '@/lib/db/database';
-import { upsertSims } from '@/lib/db/sims';
-import { saveParsedMany } from '@/lib/db/transactions';
-import { useDataStore } from '@/stores/data-store';
-import { useSettingsStore } from '@/stores/settings-store';
+const SENT =
+  'SGH1234567 Confirmed. Ksh100.00 sent to JANE DOE 0712345678 on 14/5/26 at 9:33 AM. New M-PESA balance is Ksh500.00. Transaction cost, Ksh0.00.';
+const RECEIVED =
+  'SGH1234567 Confirmed. You have received Ksh100.00 from JOHN DOE 0722***111 on 14/5/26 at 9:33 AM. New M-PESA balance is Ksh900.00.';
+const FULIZA = 'UEBMG3ZOLE Confirmed. Fuliza M-PESA amount is Ksh100.00 on 11/5/26 at 6:41 PM.';
 
-import { readInbox, smsInboxAvailable } from '../../../modules/sms-reader';
-import { MPESA_SENDERS, toCandidates } from './inbox';
+const row = (over: Partial<RawSms>): RawSms => ({
+  id: 1, address: 'MPESA', body: SENT, date: 1000, subscriptionId: 3, slot: 0, ...over,
+});
 
-const DAY = 86_400_000;
-const BATCH = 1000;
+describe('toCandidates', () => {
+  it('keeps both halves of a transfer between your own SIMs', () => {
+    const { candidates, sims } = toCandidates([
+      row({ id: 1, body: SENT, subscriptionId: 3, slot: 0 }),
+      row({ id: 2, body: RECEIVED, subscriptionId: 5, slot: 1 }),
+    ]);
+    expect(candidates.map((c) => [c.parsed.code, c.parsed.type, c.simKey])).toEqual([
+      ['SGH1234567', 'expense', 'sub:3'],
+      ['SGH1234567', 'income', 'sub:5'],
+    ]);
+    expect([...sims]).toEqual([['sub:3', 0], ['sub:5', 1]]);
+  });
 
-let running = false;
-let lastRun = 0;
+  it('treats an unknown SIM as no SIM at all', () => {
+    const { candidates, sims } = toCandidates([row({ subscriptionId: -1, slot: -1 })]);
+    expect(candidates[0].simKey).toBe('');
+    expect(sims.size).toBe(0);
+  });
 
-async function ensurePermission(): Promise<boolean> {
-  const permission = PermissionsAndroid.PERMISSIONS.READ_SMS;
-  if (await PermissionsAndroid.check(permission)) return true;
+  it('remembers a SIM whose slot is unknown', () => {
+    expect([...toCandidates([row({ subscriptionId: 7, slot: -1 })]).sims]).toEqual([['sub:7', null]]);
+  });
 
-  // ask once. After that the Permissions row in Profile is the way back, so we don't nag.
-  const { smsPromptShown, setSmsPromptShown } = useSettingsStore.getState();
-  if (smsPromptShown) return false;
-  setSmsPromptShown(true);
+  it('counts unreadable M-Pesa messages, ignores other texts, and still moves the marker forward', () => {
+    const result = toCandidates([
+      row({ body: FULIZA, date: 2000 }),
+      row({ body: 'Are we still meeting at 5?', date: 3000 }),
+    ]);
+    expect(result.candidates).toHaveLength(0);
+    expect(result.unreadable).toBe(1);
+    expect(result.newest).toBe(3000);
+  });
+});
 
-  const proceed = await new Promise<boolean>((resolve) =>
-    Alert.alert(
-      'Import M-Pesa messages?',
-      'PesaPlan can read the M-Pesa messages on this phone to record your transactions automatically. Only messages from M-PESA are used, and the messages themselves are not stored or sent anywhere.',
-      [
-        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Continue', onPress: () => resolve(true) },
-      ],
-      { cancelable: false }
-    )
-  );
-  if (!proceed) return false;
-  return (await PermissionsAndroid.request(permission)) === PermissionsAndroid.RESULTS.GRANTED;
-}
-
-async function scan(sinceMs: number) {
-  const db = await getDb();
-  const total = { saved: 0, duplicates: 0, unreadable: 0, newest: 0 };
-  let since = sinceMs;
-
-  for (let round = 0; round < 50; round++) {
-    const rows = await readInbox(since, MPESA_SENDERS, BATCH);
-    if (rows.length === 0) break;
-
-    const { candidates, sims, unreadable, newest } = toCandidates(rows);
-    await upsertSims(db, sims);
-    const { saved, duplicates } = await saveParsedMany(db, candidates);
-
-    total.saved += saved;
-    total.duplicates += duplicates;
-    total.unreadable += unreadable;
-    total.newest = Math.max(total.newest, newest);
-
-    if (rows.length < BATCH || newest <= since) break; // reached the end
-    since = newest;
-  }
-  return total;
-}
-
-/** Scans the inbox for new M-Pesa messages. `force` rescans everything. Safe to call often. */
-export async function runSmsImport({ force = false }: { force?: boolean } = {}): Promise<void> {
-  if (Platform.OS !== 'android' || !smsInboxAvailable || running) return;
-  if (!force && Date.now() - lastRun < 60_000) return;
-
-  running = true;
-  try {
-    if (!(await ensurePermission())) return;
-
-    const settings = useSettingsStore.getState();
-    const since = force ? 0 : Math.max(0, settings.smsScannedUntil - DAY); // 24h overlap, see above
-    const result = await scan(since);
-
-    // saved only after the database write succeeded, so a crash can't lose messages
-    settings.setSmsScannedUntil(Math.max(settings.smsScannedUntil, result.newest));
-    lastRun = Date.now();
-
-    if (result.saved > 0) {
-      useDataStore.getState().bump();
-      ToastAndroid.show(
-        `Imported ${result.saved} new transaction${result.saved === 1 ? '' : 's'}`,
-        ToastAndroid.SHORT
-      );
-    } else if (force) {
-      ToastAndroid.show('No new transactions found', ToastAndroid.SHORT);
-    }
-  } catch (e) {
-    console.warn('sms import failed', e);
-  } finally {
-    running = false;
-  }
-}
+it('names SIMs by slot', () => {
+  expect(simKeyFor(4)).toBe('sub:4');
+  expect(simKeyFor(-1)).toBe('');
+  expect(defaultSimLabel(0)).toBe('SIM 1');
+  expect(defaultSimLabel(1)).toBe('SIM 2');
+  expect(defaultSimLabel(null)).toBe('SIM');
+});

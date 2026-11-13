@@ -19,28 +19,53 @@ const BATCH = 1000;
 let running = false;
 let lastRun = 0;
 
-export async function ensurePermission(): Promise<boolean> {
+type SmsPermissionResult =
+  | typeof PermissionsAndroid.RESULTS.GRANTED
+  | typeof PermissionsAndroid.RESULTS.DENIED
+  | typeof PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
+  | 'cancelled';
+
+export async function ensurePermission(
+  { manualRetry = false }: { manualRetry?: boolean } = {}
+): Promise<SmsPermissionResult> {
   const permission = PermissionsAndroid.PERMISSIONS.READ_SMS;
-  if (await PermissionsAndroid.check(permission)) return true;
 
-  // ask once. After that the Permissions row in Profile is the way back, so we don't nag.
+  if (await PermissionsAndroid.check(permission)) {
+    return PermissionsAndroid.RESULTS.GRANTED;
+  }
+
   const { smsPromptShown, setSmsPromptShown } = useSettingsStore.getState();
-  if (smsPromptShown) return false;
-  setSmsPromptShown(true);
 
-  const proceed = await new Promise<boolean>((resolve) =>
-    Alert.alert(
-      'Import M-Pesa messages?',
-      'PesaPlan can read the M-Pesa messages on this phone to record your transactions automatically. Only messages from M-PESA are used, and the messages themselves are not stored or sent anywhere.',
-      [
-        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Continue', onPress: () => resolve(true) },
-      ],
-      { cancelable: false }
-    )
-  );
-  if (!proceed) return false;
-  return (await PermissionsAndroid.request(permission)) === PermissionsAndroid.RESULTS.GRANTED;
+  if (smsPromptShown && !manualRetry) {
+    return PermissionsAndroid.RESULTS.DENIED;
+  }
+
+  if (!smsPromptShown) {
+    setSmsPromptShown(true);
+  }
+
+  if (!manualRetry) {
+    const proceed = await new Promise<boolean>((resolve) =>
+      Alert.alert(
+        'Import M-Pesa messages?',
+        'PesaPlan can read the M-Pesa messages on this phone to record your transactions automatically. Only messages from M-PESA are used, and the messages themselves are not stored or sent anywhere.',
+        [
+          { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Continue', onPress: () => resolve(true) },
+        ],
+        { cancelable: false }
+      )
+    );
+
+    if (!proceed) return 'cancelled';
+  }
+
+  return PermissionsAndroid.request(permission, {
+    title: 'Allow SMS access',
+    message: 'PesaPlan reads M-Pesa messages to import transactions automatically.',
+    buttonPositive: 'Continue',
+    buttonNegative: 'Not now',
+  });
 }
 
 async function scan(sinceMs: number) {
@@ -55,7 +80,12 @@ async function scan(sinceMs: number) {
 
     const { candidates, sims, unreadable, newest } = toCandidates(rows);
     await upsertSims(db, sims);
-    const { saved, duplicates } = await saveParsedMany(db, candidates);
+    const parsedItems = candidates.map(({ parsed, simKey }) => ({
+      ...parsed,
+      simKey,
+    }));
+
+    const { saved, duplicates } = await saveParsedMany(db, parsedItems);
 
     total.saved += saved;
     total.duplicates += duplicates;
@@ -71,16 +101,28 @@ async function scan(sinceMs: number) {
 
 /** Scans the inbox for new M-Pesa messages. `force` rescans everything. Safe to call often. */
 export async function runSmsImport({ force = false }: { force?: boolean } = {}): Promise<void> {
-  if (Platform.OS !== 'android' || !smsInboxAvailable || running) return;
+  console.log('runSmsImport called, force:', force);
+  if (Platform.OS !== 'android' || running) return;
+  if (!smsInboxAvailable) {
+    console.log('SMS inbox unavailable');
+    return;
+  }
   if (!force && Date.now() - lastRun < 60_000) return;
 
   running = true;
   try {
-    if (!(await ensurePermission())) return;
+    const permissionResult = await ensurePermission();
+    if (permissionResult !== PermissionsAndroid.RESULTS.GRANTED) {
+      console.log('SMS permission not granted, skipping import');
+      return;
+    };
+    console.log('permission granted, scanning inbox');
 
     const settings = useSettingsStore.getState();
     const since = force ? 0 : Math.max(0, settings.smsScannedUntil - DAY); // 24h overlap, see above
+    console.log('SMS scan started', { since });
     const result = await scan(since);
+    console.log('SMS scan completed', result);
 
     // saved only after the database write succeeded, so a crash can't lose messages
     settings.setSmsScannedUntil(Math.max(settings.smsScannedUntil, result.newest));

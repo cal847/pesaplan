@@ -19,8 +19,12 @@ export function tapAction(info: PermissionInfo): 'request' | 'settings' | 'authe
     if (info.id === 'biometrics') {
         return 'authenticate';
     }
-    if ((info.id === 'notifications' || info.id === 'sms') && info.state !== 'granted' && info.canAskAgain){
+    if ((info.id === 'sms' && info.state !== 'granted')){
         return 'request';
     }
+    if (info.id === 'notifications' && info.state !== 'granted' && info.canAskAgain) {
+      return 'request';
+    }
+
     return 'settings';
 }
