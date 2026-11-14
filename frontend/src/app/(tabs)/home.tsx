@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -176,7 +178,7 @@ export default function HomeScreen() {
             <SlideInView>
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Upcoming Bills</Text>
+                  <Text variant="heading" style={styles.sectionTitle}>Upcoming Bills</Text>
 
                   <Link href="/all-subscriptions" asChild>
                     <TouchableOpacity>
@@ -192,7 +194,7 @@ export default function HomeScreen() {
             <SlideInView>
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Recent Transactions</Text>
+                  <Text variant="heading" style={styles.sectionTitle}>Recent Transactions</Text>
 
                   <Link href="/all-transactions" asChild>
                     <TouchableOpacity>
@@ -270,9 +272,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15
   },
   sectionTitle: {
-    fontFamily: 'IBMPlexMono_600SemiBold',
     fontSize: 16,
-    fontWeight: '700',
     color: '#08021a',
   },
   seeAll: {

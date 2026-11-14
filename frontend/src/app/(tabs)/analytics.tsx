@@ -5,7 +5,6 @@ import { BarChart, LineChart } from 'react-native-gifted-charts';
 import {
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { Text } from '@/components/app-text';
 import { PAGE_BACKGROUND } from '@/constants/colors';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
 import { StatCard } from '@/components/analytics/stat-card';
@@ -234,7 +234,7 @@ export default function AnalyticsScreen() {
         >
           <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={styles.title}>Activity</Text>
+        <Text variant="heading" style={styles.title}>Activity</Text>
         <Ionicons name="notifications-outline" size={22} color="#1A1A1A" />
       </View>
 
@@ -370,7 +370,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  title: { fontSize: 20, fontWeight: '700', color: '#1A1A1A' },
+  title: {
+    fontSize: 20,
+    color: '#1A1A1A',
+  },
   scroll: { paddingHorizontal: 16, paddingBottom: 100 },
   chartCard: {
     backgroundColor: '#FFF',

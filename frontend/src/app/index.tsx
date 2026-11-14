@@ -1,6 +1,5 @@
 // frontend/src/app/index.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { KaushanScript_400Regular, useFonts } from '@expo-google-fonts/kaushan-script';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -17,6 +16,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { FONT_FAMILIES } from '@/components/app-text';
 import { useSettingsStore } from '@/stores/settings-store';
 
 const TAGLINE = 'Plan. Save. Master.';
@@ -70,8 +70,6 @@ export default function SplashRoute() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
 
-  const [fontsLoaded, fontError] = useFonts({ KaushanScript_400Regular });
-  const fontsReady = fontsLoaded || !!fontError; // a failed font shouldn't block the app
   const hydrated = useHydrated();
 
   const [minTimePassed, setMinTimePassed] = useState(false);
@@ -96,10 +94,8 @@ export default function SplashRoute() {
     return () => clearTimeout(t);
   }, []);
 
-  // animations start once the font is ready, so the wordmark never flashes in a fallback font
+  // The root layout loads fonts before mounting this route.
   useEffect(() => {
-    if (!fontsReady) return;
-
     if (reduceMotion) {
       iconProgress.value = 1;
       wordProgress.value = 1;
@@ -113,10 +109,10 @@ export default function SplashRoute() {
 
     const t = setTimeout(() => setMinTimePassed(true), MIN_DISPLAY_MS);
     return () => clearTimeout(t);
-  }, [fontsReady]);
+  }, [reduceMotion]);
 
   // leave when ready, or when the safety net trips
-  const canLeave = (fontsReady && hydrated && minTimePassed) || maxTimePassed;
+  const canLeave = (hydrated && minTimePassed) || maxTimePassed;
 
   useEffect(() => {
     if (!canLeave || navigated.current) return;
@@ -147,30 +143,26 @@ export default function SplashRoute() {
         style={StyleSheet.absoluteFill}
       />
 
-      {fontsReady && (
-        <>
-          {/* the native splash is hidden only after this has laid out, so there's no blank flash */}
-          <View style={styles.content} onLayout={hideNativeSplash}>
-            <Animated.View style={[styles.iconBox, iconStyle]}>
-              <Ionicons name="wallet" size={44} color="#3F2FD6" />
-            </Animated.View>
+      {/* the native splash is hidden only after this has laid out, so there's no blank flash */}
+      <View style={styles.content} onLayout={hideNativeSplash}>
+        <Animated.View style={[styles.iconBox, iconStyle]}>
+          <Ionicons name="wallet" size={44} color="#3F2FD6" />
+        </Animated.View>
 
-            <Animated.Text accessibilityRole="header" style={[styles.wordmark, wordStyle]}>
-              PesaPlan
-            </Animated.Text>
+        <Animated.Text accessibilityRole="header" style={[styles.wordmark, wordStyle]}>
+          PesaPlan
+        </Animated.Text>
 
-            <View style={styles.taglineRow} accessible accessibilityLabel={TAGLINE}>
-              {TAGLINE.split('').map((char, i) => (
-                <WaveLetter key={i} char={char} index={i} reduceMotion={reduceMotion} />
-              ))}
-            </View>
-          </View>
+        <View style={styles.taglineRow} accessible accessibilityLabel={TAGLINE}>
+          {TAGLINE.split('').map((char, i) => (
+            <WaveLetter key={i} char={char} index={i} reduceMotion={reduceMotion} />
+          ))}
+        </View>
+      </View>
 
-          <Animated.View style={[styles.spinnerWrap, spinnerWrapStyle]}>
-            <Animated.View style={[styles.spinner, spinnerStyle]} />
-          </Animated.View>
-        </>
-      )}
+      <Animated.View style={[styles.spinnerWrap, spinnerWrapStyle]}>
+        <Animated.View style={[styles.spinner, spinnerStyle]} />
+      </Animated.View>
     </View>
   );
 }
@@ -191,11 +183,16 @@ const styles = StyleSheet.create({
   wordmark: {
     marginTop: 22,
     fontSize: 38,
-    fontFamily: 'KaushanScript_400Regular',
+    fontFamily: FONT_FAMILIES.heading,
     color: '#3F2FD6',
   },
   taglineRow: { flexDirection: 'row', marginTop: 8 },
-  tagline: { fontSize: 16, letterSpacing: 0.4, color: '#4B3FD9' },
+  tagline: {
+    fontSize: 16,
+    letterSpacing: 0.4,
+    color: '#4B3FD9',
+    fontFamily: FONT_FAMILIES.body['400'],
+  },
 
   spinnerWrap: { position: 'absolute', bottom: 90, alignSelf: 'center' },
   spinner: {

@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 type TransactionType = 'income' | 'expense' | 'savings';
 
@@ -126,7 +128,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 12,
     color: '#060314',
-    fontFamily: 'IBMPlexMono_400Regular',
   },
   timestamp: {
     fontSize: 10,
@@ -135,7 +136,6 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontSize: 12,
-    fontFamily: 'IBMPlexMono_400Regular',
     fontWeight: '600',
     marginLeft: 8,
   },

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -22,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Text } from '@/components/app-text';
 import type { Sim } from '@/lib/db/sims';
 import { formatKsh } from '@/lib/sms/money';
 
@@ -197,7 +197,7 @@ export function BalanceCard({
 
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={[styles.headerSide, styles.headerLeft]}>
-          <Text style={styles.greeting} numberOfLines={1}>
+          <Text variant="heading" style={styles.greeting} numberOfLines={1}>
             Hello, {name}
           </Text>
         </View>
@@ -331,7 +331,6 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 18,
-    fontWeight: '700',
     color: '#FFFFFF',
   },
 

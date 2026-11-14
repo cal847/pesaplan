@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 import { getDb } from '@/lib/db/database';
 import { countBetween } from '@/lib/db/transactions';
@@ -77,7 +79,7 @@ export function ExportModal({ visible, onClose }: { visible: boolean; onClose: (
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
         <View style={styles.sheet}>
-          <Text style={styles.title}>Export transactions</Text>
+          <Text variant="heading" style={styles.title}>Export transactions</Text>
 
           <Text style={styles.label}>Format</Text>
           <View style={styles.formats}>
@@ -137,7 +139,10 @@ export function ExportModal({ visible, onClose }: { visible: boolean; onClose: (
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
-  title: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  title: {
+    fontSize: 18,
+    marginBottom: 6,
+  },
   label: { fontSize: 13, color: '#888', marginTop: 16, marginBottom: 8 },
   formats: { flexDirection: 'row', gap: 10 },
   format: {

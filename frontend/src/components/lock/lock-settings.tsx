@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 import { ROW_GUTTER } from '@/components/profile/disclosure-row';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';

@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PAGE_BACKGROUND } from '@/constants/colors';
@@ -104,7 +106,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Profile</Text>
+        <Text variant="heading" style={styles.title}>Profile</Text>
 
         <View style={styles.identity}>
           <View style={styles.avatar}>
@@ -246,7 +248,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
     textAlign: 'center',
     marginVertical: 12,
     color: COLORS.text,

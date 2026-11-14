@@ -1,5 +1,7 @@
 
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Item = {

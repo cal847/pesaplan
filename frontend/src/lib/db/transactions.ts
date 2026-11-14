@@ -108,7 +108,23 @@ export async function addManual(db: Db, input: ManualInput): Promise<string> {
 
 export function listTransactions(
   db: Db,
-  { limit = 20, offset = 0, type, simKey }: { limit?: number; offset?: number; type?: TransactionType; simKey?: string | null } = {}
+  {
+    limit = 20,
+    offset = 0,
+    type,
+    simKey,
+    from,
+    to,
+    search,
+  }: {
+    limit?: number;
+    offset?: number;
+    type?: TransactionType;
+    simKey?: string | null;
+    from?: string;
+    to?: string;
+    search?: string;
+  } = {}
 ) {
   const filters: string[] = [];
   const params: (string | number)[] = [];
@@ -117,9 +133,22 @@ export function listTransactions(
     filters.push('type = ?');
     params.push(type);
   }
-  if (simKey !== null) {
+  if (simKey != null) {
     filters.push('sim_key = ?');
     params.push(simKey);
+  }
+  if (from !== undefined) {
+    filters.push('occurred_at >= ?');
+    params.push(from);
+  }
+  if (to !== undefined) {
+    filters.push('occurred_at < ?');
+    params.push(to);
+  }
+  const searchTerm = search?.trim();
+  if (searchTerm) {
+    filters.push("(COALESCE(merchant, '') LIKE ? OR COALESCE(code, '') LIKE ?)");
+    params.push(`%${searchTerm}%`, `%${searchTerm}%`);
   }
   return db.getAllAsync<StoredTransaction>(
     // If 'type' exists, use WHERE type=? AND sim_key=?

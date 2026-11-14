@@ -2,7 +2,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Pressable, StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PAGE_BACKGROUND } from '@/constants/colors';
@@ -128,7 +130,7 @@ export function UnlockScreen() {
     <View style={[styles.root, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
       <View style={styles.brand}>
         <Ionicons name="wallet" size={28} color="#3F2FD6" />
-        <Text style={styles.brandText}>PesaPlan</Text>
+        <Text variant="heading" style={styles.brandText}>PesaPlan</Text>
       </View>
 
       <SecretInput
@@ -158,6 +160,9 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandText: { fontSize: 20, fontWeight: '700', color: '#3F2FD6' },
+  brandText: {
+    fontSize: 20,
+    color: '#3F2FD6',
+  },
   forgot: { color: '#666', fontSize: 13, textDecorationLine: 'underline' },
 });

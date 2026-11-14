@@ -5,10 +5,10 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+
+import { Text, TextInput } from '@/components/app-text';
 
 type Props = {
   visible: boolean;
@@ -45,7 +45,7 @@ export function EditLimitModal({ visible, currentLimit, onClose, onSave }: Props
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
         <View style={styles.sheet}>
-          <Text style={styles.title}>Spending Limit</Text>
+          <Text variant="heading" style={styles.title}>Spending Limit</Text>
           <Text style={styles.subtitle}>Budget alerts are based on this amount.</Text>
 
           <View style={styles.inputRow}>
@@ -83,7 +83,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
   },
-  title: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  title: {
+    fontSize: 15,
+    marginBottom: 10,
+  },
   subtitle: { fontSize: 13, color: '#888', marginTop: 4, marginBottom: 20 },
   inputRow: {
     flexDirection: 'row',

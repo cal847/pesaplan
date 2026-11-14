@@ -1,6 +1,8 @@
 // frontend/src/components/goals/add-goal-modal.tsx
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+
+import { Text, TextInput } from '@/components/app-text';
 
 type Props = {
   visible: boolean;
@@ -17,7 +19,7 @@ export function AddGoalModal({ visible, mode, onClose, onSubmit }: Props) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.title}>{mode === 'create' ? 'Add A New Goal' : 'Top Up A Goal'}</Text>
+          <Text variant="heading" style={styles.title}>{mode === 'create' ? 'Add A New Goal' : 'Top Up A Goal'}</Text>
 
           {mode === 'create' && (
             <>
@@ -53,7 +55,10 @@ export function AddGoalModal({ visible, mode, onClose, onSubmit }: Props) {
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
-  title: { fontSize: 18, fontWeight: '700', marginBottom: 16 },
+  title: {
+    fontSize: 18,
+    marginBottom: 16,
+  },
   label: { fontSize: 13, color: '#888', marginTop: 12, marginBottom: 4 },
   input: { borderWidth: 1, borderColor: '#DDD', borderRadius: 10, padding: 10, fontSize: 15 },
   saveButton: {

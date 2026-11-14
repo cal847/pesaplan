@@ -2,7 +2,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView, BlurTargetView } from 'expo-blur';
 import { useRef, type ComponentRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 type Props = {
   name: string;

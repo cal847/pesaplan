@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PAGE_BACKGROUND } from '@/constants/colors';
@@ -103,7 +105,7 @@ export function SecretFlowModal({ visible, mode, currentKind, onClose, onDone }:
         <View style={styles.body}>
           {step === 'kind' && (
             <View style={styles.kindWrap}>
-              <Text style={styles.title}>How do you want to unlock?</Text>
+              <Text variant="heading" style={styles.title}>How do you want to unlock?</Text>
               {KIND_OPTIONS.map((o) => (
                 <Pressable
                   key={o.kind}
@@ -173,7 +175,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: PAGE_BACKGROUND },
   close: { alignSelf: 'flex-start', paddingHorizontal: 16 },
   body: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '700', color: '#1A1A1A', textAlign: 'center', marginBottom: 20 },
+  title: {
+    fontSize: 22,
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
   kindWrap: { width: '100%', paddingHorizontal: 24 },
   kindCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 16,
