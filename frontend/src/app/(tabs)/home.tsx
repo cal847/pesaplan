@@ -33,6 +33,36 @@ import { useSettingsStore } from '@/stores/settings-store';
 const RECENT_COUNT = 10;
 const NO_TOTALS: Totals = { incomeCents: 0, expenseCents: 0, savingsCents: 0 };
 
+const INSIGHTS_HEIGHT = 76;
+const ICON_CENTER_FROM_RIGHT = 65;
+
+// concentric rings radiating from behind the star icon
+const INSIGHT_RIPPLES = [100, 160, 220, 280].map((d, i) => ({
+  width: d,
+  height: d,
+  borderRadius: d / 2,
+  top: INSIGHTS_HEIGHT / 2 - d / 2,
+  right: ICON_CENTER_FROM_RIGHT - d / 2,
+  opacity: 0.22 - i * 0.04,
+}));
+
+// big circles pushed down so only their top arcs show: overlapping wave crests
+const INSIGHT_WAVES = [
+  { size: 170, left: -50, top: 52, opacity: 0.22 },
+  { size: 210, left: 20, top: 46, opacity: 0.16 },
+  { size: 190, left: 120, top: 56, opacity: 0.2 },
+].map(({ size, left, top, opacity }) => ({
+  width: size,
+  height: size,
+  borderRadius: size / 2,
+  left,
+  top,
+  opacity,
+}));
+
+// x positions of the slanted hairlines
+const INSIGHT_LINES = Array.from({ length: 8 }, (_, i) => i * 32 - 20);
+
 type UpcomingBill = {
   bill_name: string;
   amount: number;
@@ -175,6 +205,52 @@ export default function HomeScreen() {
             onPressBalance={limitCents === null ? () => router.navigate('/budget') : undefined}
           />
           <View style={styles.pageContent}>
+            {/**<SlideInView>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Get AI insights"
+                onPress={() => router.navigate('/insights')}
+                style={({ pressed }) => [styles.insightsShadow, pressed && styles.insightsPressed]}
+              >
+                <View style={styles.insightsBanner}>
+                  <LinearGradient
+                    colors={['#6A3FE8', '#4A2BE8', '#2F63F5']}
+                    locations={[0, 0.5, 1]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+
+                  {/* white texture, purely decorative so touches pass through 
+                  <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.20)', 'rgba(255,255,255,0)']}
+                      style={styles.insightsGloss}
+                    />
+                    {INSIGHT_LINES.map((left) => (
+                      <View key={`line-${left}`} style={[styles.insightsLine, { left }]} />
+                    ))}
+                    {INSIGHT_WAVES.map((wave, i) => (
+                      <View key={`wave-${i}`} style={[styles.insightsRing, wave]} />
+                    ))}
+                    {INSIGHT_RIPPLES.map((ripple, i) => (
+                      <View key={`ripple-${i}`} style={[styles.insightsRing, ripple]} />
+                    ))}
+                  </View>
+
+                  <Text variant="heading" style={styles.insightsTitle}>
+                    Get AI Insights
+                  </Text>
+
+                  <View style={styles.insightsAction}>
+                    <View style={styles.insightsIcon}>
+                      <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+                    </View>
+                    <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                  </View>
+                </View>
+              </Pressable>
+            </SlideInView> */}
             <SlideInView>
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -208,7 +284,7 @@ export default function HomeScreen() {
                     <Text style={styles.empty}>No transactions yet.</Text>
                   ) : (
                     <ScrollEdgeFade
-                      height={190}
+                      height={300}
                       contentContainerStyle={styles.transactionListContent}
                     >
                       {recent.map((tx) => {
@@ -263,13 +339,74 @@ const styles = StyleSheet.create({
   // Shared wrapper for both major content sections.
   section: {
     width: '100%',
+    // paddingVertical: 6,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    // marginVertical: 8,
+    marginVertical: 4,
     paddingVertical: 15
+  },
+    // AI insights banner
+  insightsShadow: {
+    // shadow lives here because the banner below clips its children (overflow: hidden)
+    borderRadius: 20,
+    boxShadow: '0px 8px 18px rgba(56, 31, 222, 0.28)',
+  },
+  insightsPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.985 }],
+  },
+  insightsBanner: {
+    height: 40,
+    marginTop: 10,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    backgroundColor: '#4A2BE8', // shows for a frame before the gradient paints
+  },
+  insightsGloss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
+  },
+  insightsLine: {
+    position: 'absolute',
+    top: -50,
+    width: 1,
+    height: INSIGHTS_HEIGHT + 100,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    transform: [{ rotate: '32deg' }],
+  },
+  insightsRing: {
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: '#FFFFFF', // opacity is set per ring, so only the outline fades
+  },
+  insightsTitle: {
+    fontSize: 17,
+    color: '#FFFFFF',
+  },
+  insightsAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  insightsIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
   },
   sectionTitle: {
     fontSize: 16,
@@ -283,7 +420,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center'
   },
   transactionsSection: {
-    backgroundColor: 'transparent',
+    // backgroundColor: 'black',
+    minHeight: 300,
     paddingBottom: 0,
     paddingTop: 0,
     paddingHorizontal: 0,
@@ -295,5 +433,6 @@ const styles = StyleSheet.create({
   },
   transactionListContent: {
     paddingBottom: 80,
+    // backgroundColor: 'yellow',
   },
 });

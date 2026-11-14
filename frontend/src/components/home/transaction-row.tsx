@@ -43,7 +43,7 @@ export function TransactionRow({
         <View style={styles.left}>
           {/* Frosted glass icon */}
           <View style={styles.iconWrapper}>
-            <BlurView intensity={100} tint="systemMaterial" tintColor="rgba(0, 0, 0, 0.2)" style={styles.blur}>
+            <BlurView intensity={100} tint="systemMaterial" style={styles.blur}>
               {/* Colour tint over the blur */}
               <View
                 pointerEvents="none"
@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     marginBottom: 5,
     gap: 10,
+    // backgroundColor: 'red',
   },
   divider: {
     height: 1,

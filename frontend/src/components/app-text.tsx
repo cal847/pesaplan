@@ -30,7 +30,7 @@ export const APP_FONT_ASSETS = {
 };
 
 export const FONT_FAMILIES = {
-  heading: 'DMSerifDisplay_400Regular',
+  heading: 'PlusJakartaSans_1000',
   headingItalic: 'DMSerifDisplay_400Regular_Italic',
   body: {
     '400': 'PlusJakartaSans_400Regular',
@@ -80,3 +80,4 @@ export function AppTextInput({ style, ...props }: TextInputProps) {
 }
 
 export { AppText as Text, AppTextInput as TextInput };
+
