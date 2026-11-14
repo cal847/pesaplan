@@ -169,7 +169,7 @@ export function BalanceCard({
   }));
 
   return (
-    <View style={[styles.card, { minHeight: Math.round(height * 0.25) }]}>
+    <View style={[styles.card, { height: Math.round(height * 0.37) }]}>
       {/* the glossy gradient now fills the whole card, header included */}
       <LinearGradient
         colors={['#704DF5', '#5B52E7', '#3978DC', '#3D2BB8']}
@@ -195,12 +195,12 @@ export function BalanceCard({
         />
       </Animated.View>
 
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={[styles.headerSide, styles.headerLeft]}>
+      <View style={[styles.header, { paddingTop: insets.top + 9 }]}>
+        {/* <View style={[styles.headerSide, styles.headerLeft]}>
           <Text variant="heading" style={styles.greeting} numberOfLines={1}>
             Hello, {name}
           </Text>
-        </View>
+        </View> */}
 
         {/* both sides are flex: 1, so this sits in the exact middle whatever their widths */}
         <SimSelector sims={sims} activeSim={activeSim} onChange={onChangeSim} />
@@ -295,10 +295,10 @@ export function BalanceCard({
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    // curves the card's own bottom corners; the page behind shows in the gaps
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
     overflow: 'hidden',
+    alignSelf: 'center',
     backgroundColor: '#381FDE', // shows for a frame before the gradient paints
   },
   shine: {
@@ -396,14 +396,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 9,
+    // paddingVertical: 9,
   },
   balanceHighlight: {
-    width: '92%',
-    marginBottom: 12,
+    width: '85%',
+    marginBottom: 35,
     paddingHorizontal: 14,
-    paddingVertical: 20,
-    borderRadius: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.38)',
     backgroundColor: 'rgba(255,255,255,0.12)',

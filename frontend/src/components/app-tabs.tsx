@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { PAGE_BACKGROUND } from '@/constants/colors';
 
 const ACTIVE_COLOR = '#4B0082';
 const INACTIVE_COLOR = '#8B7FE0';
@@ -64,7 +63,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: PAGE_BACKGROUND,
+    backgroundColor: '#d3ccf7',
     borderRadius: 30,
     marginHorizontal: 24,
     marginBottom: 30,
