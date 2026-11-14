@@ -2,21 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AmbientBackground } from '@/components/shared/ambient-background';
 import { BalanceCard } from '@/components/home/balance-card';
-import { TransactionRow } from '@/components/home/transaction-row';
 import { BillsCarousel } from '@/components/home/bill-carousel';
-import { SlideInView } from '@/components/shared/slide-in-view';
+import { TransactionRow } from '@/components/home/transaction-row';
+import { AmbientBackground } from '@/components/shared/ambient-background';
 import { ScrollEdgeFade } from '@/components/shared/scroll-edge-fade';
+import { SlideInView } from '@/components/shared/slide-in-view';
 import { getDb } from '@/lib/db/database';
-import { listTransactions, totalsBetween, StoredTransaction, Totals } from '@/lib/db/transactions';
+import { StoredTransaction, Totals, listTransactions, totalsBetween } from '@/lib/db/transactions';
 import { TYPE_EMOJI, transactionTitle } from '@/lib/display';
-import { PERIOD_CAPTION, periodBounds } from '@/lib/period';
-import { formatKsh, formatSigned } from '@/lib/sms/money';
+import { periodBounds } from '@/lib/period';
+import { formatSigned } from '@/lib/sms/money';
 import { formatStamp } from '@/lib/time';
+import { useDataStore } from '@/stores/data-store';
 import { useSettingsStore } from '@/stores/settings-store';
 
 // Placeholder data — shaped to match the backend HomeSummarySchema.
@@ -97,6 +98,9 @@ function useHomeData() {
   const period = useSettingsStore((s) => s.spendingPeriod);
   const [totals, setTotals] = useState<Totals>(NO_TOTALS);
   const [recent, setRecent] = useState<StoredTransaction[]>([]);
+  // Refresh on new import
+  const dataVersion = useDataStore((s) => s.version);
+  const simKey = useSettingsStore((s) => s.activeSim);
 
   // reload each time the screen is focused, so new transactions show up
   useFocusEffect(
@@ -105,9 +109,10 @@ function useHomeData() {
       (async () => {
         const db = await getDb();
         const { from, to } = periodBounds(period);
+        
         const [t, r] = await Promise.all([
-          totalsBetween(db, from, to),
-          listTransactions(db, { limit: RECENT_COUNT }),
+          totalsBetween(db, from, to, simKey),
+          listTransactions(db, { limit: RECENT_COUNT, simKey }),
         ]);
         if (!cancelled) {
           setTotals(t);
@@ -117,7 +122,7 @@ function useHomeData() {
       return () => {
         cancelled = true;
       };
-    }, [period])
+    }, [period, simKey, dataVersion])
   );
 
   return { totals, recent };

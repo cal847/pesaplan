@@ -108,7 +108,7 @@ export async function addManual(db: Db, input: ManualInput): Promise<string> {
 
 export function listTransactions(
   db: Db,
-  { limit = 20, offset = 0, type, simKey }: { limit?: number; offset?: number; type?: TransactionType; simKey?: string } = {}
+  { limit = 20, offset = 0, type, simKey }: { limit?: number; offset?: number; type?: TransactionType; simKey?: string | null } = {}
 ) {
   const filters: string[] = [];
   const params: (string | number)[] = [];
@@ -117,7 +117,7 @@ export function listTransactions(
     filters.push('type = ?');
     params.push(type);
   }
-  if (simKey) {
+  if (simKey !== null) {
     filters.push('sim_key = ?');
     params.push(simKey);
   }
@@ -133,11 +133,11 @@ export function listTransactions(
 }
 
 /** Totals. Expense amounts already include the M-Pesa fee. */
-export async function totalsBetween(db: Db, from: string, to: string, simKey: string): Promise<Totals> {
-  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?', 'sim_key = ?'];
+export async function totalsBetween(db: Db, from: string, to: string, simKey: string | null = null): Promise<Totals> {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?'];
   const params: (string | number)[] = [from, to];
 
-  if (simKey !== undefined) {
+  if (simKey !== null) {
     filters.push('sim_key = ?');
     params.push(simKey);
   }
@@ -154,12 +154,20 @@ export async function totalsBetween(db: Db, from: string, to: string, simKey: st
 }
 
 // Lists transactions between a given range
-export function listBetween(db: Db, from: string, to: string, simKey: string) {
+export function listBetween(db: Db, from: string, to: string, simKey: string | null) {
+  const filters: string[] = ['occured_at >= ?', 'occured_at < ?']
+  const params: (string | number)[] = [from, to]
+
+  if (simKey != null) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
+
   return db.getAllAsync<StoredTransaction>(
     `SELECT ${COLUMNS} FROM transactions
-     WHERE occurred_at >= ? AND occurred_at < ? AND sim_key = ?
+     WHERE ${filters.join( 'AND' )}
      ORDER BY occurred_at ASC, created_at ASC`,
-    [from, to, simKey]
+    [...params, simKey]
   );
 }
 
@@ -175,10 +183,10 @@ export async function countBetween(db: Db, from: string, to: string, simKey: str
 export type DailyTotals = { day: string; incomeCents: number; expenseCents: number };
 
 // Calculates income and expense per day.
-export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: string) {
-  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?', 'sim_key = ?'];
+export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: string | null) {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?'];
   const params: (string | number)[] = [from, to];
-  if (simKey !== undefined) {
+  if (simKey !== null) {
     filters.push('sim_key = ?');
     params.push(simKey);
   }

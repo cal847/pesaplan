@@ -20,6 +20,7 @@ export function useAnalytics(period: AnalyticsPeriod): AnalyticsData | null {
   const limitCents = useSettingsStore((s) => s.spendingLimitCents);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const dataVersion = useDataStore((s) => s.version);
+  const simKey = useSettingsStore((s) => s.activeSim);
 
   useFocusEffect(
     useCallback(() => {
@@ -29,9 +30,9 @@ export function useAnalytics(period: AnalyticsPeriod): AnalyticsData | null {
         const range = periodBounds(period);
         const budgetRange = periodBounds(spendingPeriod); // the budget has its own period
         const [daily, totals, budgetTotals] = await Promise.all([
-          dailyTotalsBetween(db, range.from, range.to),
-          totalsBetween(db, range.from, range.to),
-          totalsBetween(db, budgetRange.from, budgetRange.to),
+          dailyTotalsBetween(db, range.from, range.to, simKey),
+          totalsBetween(db, range.from, range.to, simKey),
+          totalsBetween(db, budgetRange.from, budgetRange.to, simKey),
         ]);
         if (cancelled) return;
 
@@ -50,7 +51,7 @@ export function useAnalytics(period: AnalyticsPeriod): AnalyticsData | null {
       return () => {
         cancelled = true;
       };
-    }, [period, spendingPeriod, limitCents, dataVersion])
+    }, [period, spendingPeriod, limitCents, dataVersion, simKey])
   );
 
   return data;
