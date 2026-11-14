@@ -19,7 +19,7 @@ import {
   type StoredTransaction,
   type Totals,
 } from '@/lib/db/transactions';
-import { TYPE_EMOJI, transactionTitle } from '@/lib/display';
+import { transactionTitle } from '@/lib/display';
 import { periodBounds } from '@/lib/period';
 import { formatSigned } from '@/lib/sms/money';
 import { formatStamp } from '@/lib/time';
@@ -209,15 +209,21 @@ export default function HomeScreen() {
                       height={190}
                       contentContainerStyle={styles.transactionListContent}
                     >
-                      {recent.map((tx) => (
-                        <TransactionRow
-                          key={tx.id}
-                          merchantName={transactionTitle(tx)}
-                          timestamp={formatStamp(tx.occurredAt)}
-                          amountText={formatSigned(tx.type, tx.amountCents)}
-                          emoji={TYPE_EMOJI[tx.type]}
-                        />
-                      ))}
+                      {recent.map((tx) => {
+                        // const amountColor =
+                        //   tx.type === 'income' ? '#1FA64A' :
+                        //   tx.type === 'expense' ? '#d3686c' : '#67627fa9';
+                        return (
+                          <TransactionRow
+                            key={tx.id}
+                            merchantName={transactionTitle(tx)}
+                            timestamp={formatStamp(tx.occurredAt)}
+                            amountText={formatSigned(tx.type, tx.amountCents)}
+                            // amountColor={amountColor}
+                            type={tx.type}
+                          />
+                        );
+                      })}
                     </ScrollEdgeFade>
                   )}
                 </View>
