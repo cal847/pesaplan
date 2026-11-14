@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 // import { eraseEverything } from '@/lib/erase-data';
 import { BiometricStatus, biometricStatus, promptBiometric } from '@/lib/lock/biometrics';
 import { describeFailure } from '@/lib/lock/messages';
@@ -151,7 +152,7 @@ export function UnlockScreen() {
 const styles = StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#F7F5FF',
+    backgroundColor: PAGE_BACKGROUND,
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 1000,

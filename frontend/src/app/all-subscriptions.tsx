@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { SubscriptionRow } from '@/components/subscriptions/subscription-row';
 
 // Placeholder — swap for GET /api/v1/home/bills/all once the client exists
@@ -50,7 +51,7 @@ export default function AllSubscriptionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F7F6FB' },
+  safeArea: { flex: 1, backgroundColor: PAGE_BACKGROUND },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

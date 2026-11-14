@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { AddGoalModal } from '@/components/goals/add-goal-modal';
 
 // Placeholder — swap for GET /api/v1/goals and /api/v1/goals/progress/all
@@ -170,7 +171,7 @@ function GoalCheckRow({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F0EFF5',
+    backgroundColor: PAGE_BACKGROUND,
   },
   header: {
     flexDirection: 'row',

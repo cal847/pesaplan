@@ -4,10 +4,11 @@ type Props = {
   merchantName: string;
   timestamp: string; // pre-formatted, e.g. "Wednesday, 10:15 AM"
   amountText: string;
+  amountColor: string;
   emoji: string; // placeholder until real merchant icons exist
 };
 
-export function TransactionRow({ merchantName, timestamp, amountText, emoji }: Props) {
+export function TransactionRow({ merchantName, timestamp, amountText, amountColor, emoji }: Props) {
   return (
     <View style={styles.row}>
       <View style={styles.left}>
@@ -17,7 +18,7 @@ export function TransactionRow({ merchantName, timestamp, amountText, emoji }: P
           <Text style={styles.timestamp}>{timestamp}</Text>
         </View>
       </View>
-      <Text style={styles.amount}>{amountText}</Text>
+      <Text style={[styles.amount, { color: amountColor }]}>{amountText}</Text>
     </View>
   );
 }
@@ -27,12 +28,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 5,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#2b0c0c2f',
+    borderBottomColor: 'rgba(224, 222, 255, 0.16)',
   },
   left: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -42,18 +45,19 @@ const styles = StyleSheet.create({
   },
   merchant: {
     fontWeight: '600',
-    fontSize: 13.5,
-    color: '#1A1A1A',
+    fontSize: 12,
+    color: '#F3F1FF',
     fontFamily: 'IBMPlexMono_400Regular',
   },
   timestamp: {
-    fontSize: 12,
-    color: '#888888',
+    fontSize: 10,
+    color: '#A6A5C2',
     marginTop: 2,
   },
   amount: {
-    fontSize: 13.5,
+    fontSize: 12,
     fontFamily: 'IBMPlexMono_400Regular',
-    color: '#1A1A1A',
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });

@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { TransactionPill } from '@/components/transactions/transaction-pill';
 import { getDb } from '@/lib/db/database';
 import { listTransactions, StoredTransaction } from '@/lib/db/transactions';
@@ -73,7 +74,7 @@ export default function AllTransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F7F6FB' },
+  safeArea: { flex: 1, backgroundColor: PAGE_BACKGROUND },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

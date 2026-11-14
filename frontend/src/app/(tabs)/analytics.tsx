@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
 import { StatCard } from '@/components/analytics/stat-card';
 import { DonutChart, Slice } from '@/components/analytics/donut-chart';
@@ -361,7 +362,7 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F0EFF5' },
+  safeArea: { flex: 1, backgroundColor: PAGE_BACKGROUND },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

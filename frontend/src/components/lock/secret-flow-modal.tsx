@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { describeFailure, explainCheck } from '@/lib/lock/messages';
 import { checkSecret, SecretKind } from '@/lib/lock/rules';
 import { createSecret, verifySecret } from '@/lib/lock/service';
@@ -169,7 +170,7 @@ export function SecretFlowModal({ visible, mode, currentKind, onClose, onDone }:
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F7F5FF' },
+  root: { flex: 1, backgroundColor: PAGE_BACKGROUND },
   close: { alignSelf: 'flex-start', paddingHorizontal: 16 },
   body: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: '700', color: '#1A1A1A', textAlign: 'center', marginBottom: 20 },

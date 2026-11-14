@@ -1,18 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BalanceCard } from '@/components/home/balance-card';
 import { BillsCarousel } from '@/components/home/bill-carousel';
 import { TransactionRow } from '@/components/home/transaction-row';
-import { AmbientBackground } from '@/components/shared/ambient-background';
 import { ScrollEdgeFade } from '@/components/shared/scroll-edge-fade';
 import { SlideInView } from '@/components/shared/slide-in-view';
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { getDb } from '@/lib/db/database';
-import { StoredTransaction, Totals, listTransactions, totalsBetween } from '@/lib/db/transactions';
+import { listSims, type Sim } from '@/lib/db/sims';
+import {
+  listTransactions,
+  totalsBetween,
+  type StoredTransaction,
+  type Totals,
+} from '@/lib/db/transactions';
 import { TYPE_EMOJI, transactionTitle } from '@/lib/display';
 import { periodBounds } from '@/lib/period';
 import { formatSigned } from '@/lib/sms/money';
@@ -25,7 +31,16 @@ import { useSettingsStore } from '@/stores/settings-store';
 const RECENT_COUNT = 10;
 const NO_TOTALS: Totals = { incomeCents: 0, expenseCents: 0, savingsCents: 0 };
 
-const UPCOMING_BILLS = {
+type UpcomingBill = {
+  bill_name: string;
+  amount: number;
+  days_remaining: number;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  backgroundColor: string;
+};
+
+const UPCOMING_BILLS: { upcoming_bills: UpcomingBill[] } = {
   upcoming_bills: [
     {
       bill_name: 'Youtube',
@@ -98,6 +113,7 @@ function useHomeData() {
   const period = useSettingsStore((s) => s.spendingPeriod);
   const [totals, setTotals] = useState<Totals>(NO_TOTALS);
   const [recent, setRecent] = useState<StoredTransaction[]>([]);
+  const [sims, setSims] = useState<Sim[]>([]);
   // Refresh on new import
   const dataVersion = useDataStore((s) => s.version);
   const simKey = useSettingsStore((s) => s.activeSim);
@@ -110,13 +126,15 @@ function useHomeData() {
         const db = await getDb();
         const { from, to } = periodBounds(period);
         
-        const [t, r] = await Promise.all([
+        const [t, r, availableSims] = await Promise.all([
           totalsBetween(db, from, to, simKey),
           listTransactions(db, { limit: RECENT_COUNT, simKey }),
+          listSims(db),
         ]);
         if (!cancelled) {
           setTotals(t);
           setRecent(r);
+          setSims(availableSims);
         }
       })().catch((e) => console.warn('home load failed', e));
       return () => {
@@ -125,20 +143,16 @@ function useHomeData() {
     }, [period, simKey, dataVersion])
   );
 
-  return { totals, recent };
+  return { totals, recent, sims };
 }
 
 export default function HomeScreen() {
   const router = useRouter();
-  const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
-  });
-
-  const { totals, recent } = useHomeData();
-  const period = useSettingsStore((s) => s.spendingPeriod);
+ 
+  const { totals, recent, sims } = useHomeData();
   const limitCents = useSettingsStore((s) => s.spendingLimitCents);
-
+  const activeSim = useSettingsStore((s) => s.activeSim);
+  const setActiveSim = useSettingsStore((s) => s.setActiveSim);
   // budget balance = what's left of the limit; negative means over budget
   const balanceCents = limitCents === null ? null : limitCents - totals.expenseCents;
       
@@ -147,127 +161,97 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <AmbientBackground scrollY={scrollY} />
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+        <Animated.ScrollView contentContainerStyle={styles.scrollContent}>
+          <BalanceCard
+            balance={balanceCents}
+            received={totals.incomeCents}
+            spent={totals.expenseCents}
+            sims={sims}
+            activeSim={activeSim}
+            onChangeSim={setActiveSim}
+            onPressBalance={limitCents === null ? () => router.navigate('/budget') : undefined}
+          />
+          <View style={styles.pageContent}>
+            <SlideInView>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Upcoming Bills</Text>
 
-      <SafeAreaView style={styles.safeArea}>
-        <Animated.ScrollView
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={styles.scrollContent}
-        >
-          <View style={styles.header}>
-            <Text style={styles.greeting}>Hello, User!!</Text>
+                  <Link href="/all-subscriptions" asChild>
+                    <TouchableOpacity>
+                      <Text style={styles.seeAll}>See All</Text>
+                    </TouchableOpacity>
+                  </Link>
+                </View>
 
-            <TouchableOpacity>
-              <Ionicons
-                name="notifications-outline"
-                size={22}
-                color="#07022A"
-              />
-            </TouchableOpacity>
+                <BillsCarousel bills={sortedUpcomingBills} />
+              </View>
+            </SlideInView>
+
+            <SlideInView>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Recent Transactions</Text>
+
+                  <Link href="/all-transactions" asChild>
+                    <TouchableOpacity>
+                      <Text style={styles.seeAll}>See All</Text>
+                    </TouchableOpacity>
+                  </Link>
+                </View>
+
+                <View style={styles.transactionsSection}>
+                  {recent.length === 0 ? (
+                    <Text style={styles.empty}>No transactions yet.</Text>
+                  ) : (
+                    <ScrollEdgeFade
+                      height={190}
+                      contentContainerStyle={styles.transactionListContent}
+                    >
+                      {recent.map((tx) => (
+                        <TransactionRow
+                          key={tx.id}
+                          merchantName={transactionTitle(tx)}
+                          timestamp={formatStamp(tx.occurredAt)}
+                          amountText={formatSigned(tx.type, tx.amountCents)}
+                          emoji={TYPE_EMOJI[tx.type]}
+                        />
+                      ))}
+                    </ScrollEdgeFade>
+                  )}
+                </View>
+              </View>
+            </SlideInView>
           </View>
-
-          <SlideInView>
-            {/* with no limit set, tapping the card goes to Budget to set one */}
-            <Pressable disabled={limitCents !== null} onPress={() => router.navigate('/budget')}>
-              <BalanceCard
-                balance={balanceCents}
-                // caption={caption}
-                received={totals.incomeCents}
-                spent={totals.expenseCents}
-              />
-            </Pressable>
-          </SlideInView>
-
-          <SlideInView>
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  Upcoming Bills & Subscriptions
-                </Text>
-
-                <Link href="/all-subscriptions" asChild>
-                  <TouchableOpacity>
-                    <Text style={styles.seeAll}>See All</Text>
-                  </TouchableOpacity>
-                </Link>
-              </View>
-
-              <BillsCarousel bills={sortedUpcomingBills} />
-            </View>
-          </SlideInView>
-
-          <SlideInView>
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  Recent Transactions
-                </Text>
-
-                <Link href="/all-transactions" asChild>
-                  <TouchableOpacity>
-                    <Text style={styles.seeAll}>See All</Text>
-                  </TouchableOpacity>
-                </Link>
-              </View>
-
-              <View style={styles.transactionsSection}>
-                { recent.length === 0? (
-                  <Text style={styles.empty}>No transactions yet.</Text>
-                ) : (
-                  <ScrollEdgeFade
-                    height={190}
-                    fadeHeight={24}
-                    // color="100, 100, 100"
-                    contentContainerStyle={styles.transactionListContent}>
-                    {recent.map((tx) => (
-                      <TransactionRow
-                        key={tx.id}
-                        merchantName={transactionTitle(tx)}
-                        timestamp={formatStamp(tx.occurredAt)}
-                        amountText={formatSigned(tx.type, tx.amountCents)}
-                        emoji={TYPE_EMOJI[tx.type]}
-                      />
-                    ))}
-                  </ScrollEdgeFade>
-                )}
-              </View>
-            </View>
-          </SlideInView>
         </Animated.ScrollView>
       </SafeAreaView>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FBFDFE',
   },
   safeArea: {
     flex: 1,
+    backgroundColor: PAGE_BACKGROUND
   },
 
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 100,
+    flexGrow: 1,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  pageContent: {
+    flexGrow: 1,
     gap: 15,
+    paddingHorizontal: 16,
+    paddingTop: 33,
+    paddingBottom: 100,
+    marginTop: -28,
   },
-
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  greeting: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#07022A',
-  },
-
   // Shared wrapper for both major content sections.
   section: {
     width: '100%',
@@ -280,7 +264,8 @@ const styles = StyleSheet.create({
     paddingVertical: 15
   },
   sectionTitle: {
-    fontSize: 17,
+    fontFamily: 'IBMPlexMono_600SemiBold',
+    fontSize: 16,
     fontWeight: '700',
     color: '#08021a',
   },
@@ -292,14 +277,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center'
   },
   transactionsSection: {
-    backgroundColor: '#f7f5fc',
-    borderRadius: 12,
-    paddingBottom: 20,
-    paddingTop: 5,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    marginHorizontal: -10,
-    borderColor: '#2B0C0C2F',
+    backgroundColor: 'transparent',
+    paddingBottom: 0,
+    paddingTop: 0,
+    paddingHorizontal: 0,
   },
 
   transactionList: {

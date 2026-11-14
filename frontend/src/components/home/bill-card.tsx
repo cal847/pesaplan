@@ -1,5 +1,7 @@
 // frontend/src/components/home/bill-card.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView, BlurTargetView } from 'expo-blur';
+import { useRef, type ComponentRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 type Props = {
@@ -12,16 +14,31 @@ type Props = {
 };
 
 export function BillCard({ name, amount, daysLeft, icon, iconColor, backgroundColor }: Props) {
+  const blurTarget = useRef<ComponentRef<typeof View> | null>(null);
+
   return (
-    <View style={[styles.card, { backgroundColor }]}>
-      <View style={styles.header}>
-        <Ionicons name={icon} size={16} color={iconColor} />
-        <Text style={[styles.name, { color: iconColor }]}>{name}</Text>
+    <View style={[styles.card, { borderColor: backgroundColor }]}>
+      <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor }]} />
+        <View style={styles.backdropGlow} />
+      </BlurTargetView>
+      <BlurView
+        blurTarget={blurTarget}
+        blurMethod="dimezisBlurViewSdk31Plus"
+        intensity={45}
+        tint="light"
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Ionicons name={icon} size={16} color={iconColor} />
+          <Text style={[styles.name, { color: iconColor }]}>{name}</Text>
+        </View>
+        <Text style={styles.amount}>Ksh {amount.toFixed(2)}</Text>
+        <Text style={styles.daysLeft}>
+          {daysLeft} {daysLeft === 1 ? 'Day' : 'Days'} Left
+        </Text>
       </View>
-      <Text style={styles.amount}>Ksh {amount.toFixed(2)}</Text>
-      <Text style={styles.daysLeft}>
-        {daysLeft} {daysLeft === 1 ? 'Day' : 'Days'} Left
-      </Text>
     </View>
   );
 }
@@ -30,26 +47,41 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     borderRadius: 16,
-    padding: 16,
-    minHeight: 150,
+    borderWidth: 1.5,
+    minHeight: 75,
+    overflow: 'hidden',
+  },
+  backdropGlow: {
+    position: 'absolute',
+    top: -34,
+    right: -24,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+  },
+  content: {
+    flex: 1,
+    padding: 9,
     justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   name: {
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 12,
+    flexShrink: 1,
   },
   amount: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#333333',
     fontWeight: '600',
   },
   daysLeft: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#555555',
   },
 });

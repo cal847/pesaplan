@@ -1,7 +1,8 @@
 import { useColorScheme } from 'react-native';
+import { PAGE_BACKGROUND } from '@/constants/colors';
 
 const LIGHT = {
-  background: '#F0EFF5',
+  background: PAGE_BACKGROUND,
   card: '#FFFFFF',
   text: '#1A1A1A',
   subtext: '#888888',

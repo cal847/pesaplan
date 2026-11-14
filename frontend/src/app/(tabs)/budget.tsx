@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { CategorySection } from '@/components/budget/category-section';
 import { EditBudgetModal } from '@/components/budget/edit-budget-modal';
 import { EditCategoryModal } from '@/components/budget/edit-category-modal';
@@ -191,7 +192,7 @@ export default function BudgetScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F0EFF5' },
+  safeArea: { flex: 1, backgroundColor: PAGE_BACKGROUND },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

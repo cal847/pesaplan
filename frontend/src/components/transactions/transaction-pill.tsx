@@ -3,16 +3,18 @@ import { StyleSheet, Text, View } from 'react-native';
 type Props = {
   merchantName: string;
   date: string;
-  amountText: string };
+  amountText: string;
+  amountColor: string;
+};
 
-export function TransactionPill({ merchantName, date, amountText }: Props) {
+export function TransactionPill({ merchantName, date, amountText, amountColor }: Props) {
   return (
     <View style={styles.pill}>
       <View>
         <Text style={styles.merchant}>{merchantName}</Text>
         <Text style={styles.date}>{date}</Text>
       </View>
-      <Text style={styles.amount}> {amountText}</Text>
+      <Text style={[styles.amount, { color: amountColor }]}> {amountText}</Text>
     </View>
   );
 }

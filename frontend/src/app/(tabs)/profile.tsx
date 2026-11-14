@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { LockSettings } from '@/components/lock/lock-settings';
 import { BackupSection } from '@/components/profile/backup-section';
 import { DisclosureRow, ROW_GUTTER } from '@/components/profile/disclosure-row';
@@ -15,7 +16,7 @@ import { PermissionId, pillLabel, tapAction } from '@/lib/permissions';
 import { ThemePreference, useSettingsStore } from '@/stores/settings-store';
 
 const COLORS = {
-  background: '#F0EFF5',
+  background: PAGE_BACKGROUND,
   card: '#FFFFFF',
   text: '#07022A',
   subtext: '#666666',
