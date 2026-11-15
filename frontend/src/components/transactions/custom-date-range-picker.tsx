@@ -110,7 +110,7 @@ export function CustomDateRangePicker({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      // animationType="fade"
       onRequestClose={onCancel}
     >
       <View style={styles.backdrop}>

@@ -100,6 +100,7 @@ export function useTransactionList(range: RangeFilter, search: string, simKey: s
     status,
     refreshing,
     loadingMore,
+    exhausted: exhausted.current,
     loadMore: () => load(false),
     retry: () => load(true),
     queryKey: `${rangeKey}|${search}|${simKey}`,

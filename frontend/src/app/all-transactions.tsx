@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -18,12 +18,13 @@ import {
   type SelectedDateRange,
 } from '@/components/transactions/custom-date-range-picker';
 import { TransactionPill } from '@/components/transactions/transaction-pill';
-import { getDb } from '@/lib/db/database';
-import { listTransactions, type StoredTransaction } from '@/lib/db/transactions';
+import { useDebounced, useTransactionList, type RangeFilter } from '@/hooks/use-transaction-list'; // Adjust path
+import { type StoredTransaction } from '@/lib/db/transactions';
 import { transactionTitle } from '@/lib/display';
 import { periodBounds } from '@/lib/period';
 import { formatKsh } from '@/lib/sms/money';
 import { formatStamp, formatTransactionGroupDate, toLocalStamp } from '@/lib/time';
+import { useSettingsStore } from '@/stores/settings-store';
 
 const PAGE = 30;
 
@@ -97,106 +98,41 @@ function transactionAmountColor(item: StoredTransaction) {
 
 export default function AllTransactionsScreen() {
   const router = useRouter();
-  const [rows, setRows] = useState<StoredTransaction[]>([]);
-  const [exhausted, setExhausted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState(false);
+ 
   const [filter, setFilter] = useState<ActiveFilter>('all');
   const [customRange, setCustomRange] = useState<SelectedDateRange | null>(null);
   const [rangePickerOpen, setRangePickerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
-  
-  const offset = useRef(0);
-  const requestVersion = useRef(0);
-  const loadingRef = useRef(false);
-  const pendingReset = useRef(false);
-  const screenActive = useRef(false);
-  const isFilterMode = filter !== 'all';
 
+  const search = useDebounced(searchText.trim());
+  const activeSim = useSettingsStore((s) => s.activeSim);
+  
+  const range = useMemo<RangeFilter>(() => {
+    if (filter === 'custom' && customRange) return {
+      kind: 'custom',
+      ...customRange
+    }
+    return {kind: filter === 'custom' ? 'all' : filter};
+  }, [filter, customRange]);
+
+  const { rows, status, refreshing, loadingMore, loadMore, retry, exhausted } = useTransactionList(range, search, activeSim);
+
+  const isLoading = status === 'loading' || refreshing;
+  const hasError = status === 'error';
+  const sections = useMemo(() => groupByDate(rows), [rows]);
+  
   const query = useMemo<Query>(() => {
     const bounds = getBounds(filter, customRange);
     return { ...bounds, search: searchText.trim() };
   }, [filter, customRange, searchText]);
+
   const queryKey = `${query.from}|${query.to}|${query.search}`;
   const queryRef = useRef(query);
   queryRef.current = query;
 
-  const sections = useMemo(() => groupByDate(rows), [rows]);
-
-  const loadPage = useCallback(async (reset: boolean) => {
-    if (loadingRef.current) {
-      if (reset) pendingReset.current = true;
-      return;
-    }
-
-    loadingRef.current = true;
-    setLoading(true);
-    const version = requestVersion.current;
-    const pageOffset = reset ? 0 : offset.current;
-    const currentQuery = queryRef.current;
-
-    try {
-      const page = await listTransactions(await getDb(), {
-        limit: PAGE,
-        offset: pageOffset,
-        from: currentQuery.from,
-        to: currentQuery.to,
-        search: currentQuery.search,
-      });
-
-      if (version === requestVersion.current) {
-        offset.current = pageOffset + page.length;
-        setRows((current) => (reset ? page : [...current, ...page]));
-        setExhausted(page.length < PAGE);
-        setLoadError(false);
-      }
-    } catch (error) {
-      if (version === requestVersion.current) {
-        console.warn('transactions load failed', error);
-        setLoadError(true);
-        setExhausted(true);
-      }
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
-
-      if (pendingReset.current) {
-        pendingReset.current = false;
-        if (screenActive.current) {
-          offset.current = 0;
-          setRows([]);
-          setExhausted(false);
-          setLoadError(false);
-          void loadPage(true);
-        }
-      }
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      screenActive.current = true;
-      requestVersion.current += 1;
-      offset.current = 0;
-      setRows([]);
-      setExhausted(false);
-      setLoadError(false);
-      void loadPage(true);
-
-      return () => {
-        screenActive.current = false;
-        requestVersion.current += 1;
-      };
-    }, [loadPage, queryKey])
-  );
-
   function chooseFilter(next: FilterId) {
     if (next === 'custom') {
-      if (filter === 'custom') {
-        setFilter('all');
-        return;
-      }
       setRangePickerOpen(true);
     }
     setFilter(current => current === next ? 'all' : next);
@@ -224,6 +160,7 @@ export default function AllTransactionsScreen() {
 
       <ScrollView
         horizontal
+        style={{ flexGrow: 0 }}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[
           styles.filters,
@@ -299,23 +236,28 @@ export default function AllTransactionsScreen() {
         )}
         onEndReachedThreshold={0.45}
         onEndReached={() => {
-          if (!exhausted && !loadingRef.current && rows.length > 0) {
-            void loadPage(false);
-          }
+          if (!exhausted) loadMore();
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            {loading ? (
+            {isLoading ? (
               <ActivityIndicator color="#5D3BC8" />
             ) : (
-              <Text style={styles.emptyText}>
-                {loadError ? 'Could not load transactions.' : 'No transactions found.'}
-              </Text>
+              <View>
+                <Text style={styles.emptyText}>
+                  {hasError ? 'Could not load transactions.' : 'No transactions found.'}
+                </Text>
+                {hasError && (
+                  <Pressable onPress={retry} style={styles.retryButton}>
+                    <Text style={styles.retryText}>Tap to retry</Text>
+                  </Pressable>
+                )}
+              </View>
             )}
           </View>
         }
         ListFooterComponent={
-          loading && rows.length > 0 ? (
+          loadingMore ? (
             <ActivityIndicator style={styles.footerLoader} color="#5D3BC8" />
           ) : null
         }
@@ -410,7 +352,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   listContent: {
-    // flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 18,
     paddingBottom: 100,
   },
