@@ -146,6 +146,7 @@ function useHomeData() {
   const [totals, setTotals] = useState<Totals>(NO_TOTALS);
   const [recent, setRecent] = useState<StoredTransaction[]>([]);
   const [sims, setSims] = useState<Sim[]>([]);
+  
   // Refresh on new import
   const dataVersion = useDataStore((s) => s.version);
   const simKey = useSettingsStore((s) => s.activeSim);

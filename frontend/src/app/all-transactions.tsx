@@ -18,7 +18,6 @@ import {
   type SelectedDateRange,
 } from '@/components/transactions/custom-date-range-picker';
 import { TransactionPill } from '@/components/transactions/transaction-pill';
-import { PAGE_BACKGROUND } from '@/constants/colors';
 import { getDb } from '@/lib/db/database';
 import { listTransactions, type StoredTransaction } from '@/lib/db/transactions';
 import { transactionTitle } from '@/lib/display';
@@ -33,9 +32,12 @@ const FILTERS = [
   { id: 'month', label: 'This month' },
   { id: 'year', label: 'This year' },
   { id: 'custom', label: 'Custom range' },
+  // { id: 'all', label: 'All Time' },
 ] as const;
 
 type FilterId = (typeof FILTERS)[number]['id'];
+type ActiveFilter = FilterId | 'all';
+
 type TransactionSection = {
   key: string;
   title: string;
@@ -43,11 +45,16 @@ type TransactionSection = {
 };
 type Query = { from: string; to: string; search: string };
 
-function getBounds(filter: FilterId, range: SelectedDateRange | null) {
+function getBounds(filter: ActiveFilter, range: SelectedDateRange | null) {
   if (filter === 'today') return periodBounds('Daily');
   if (filter === 'month') return periodBounds('Monthly');
   if (filter === 'year') return periodBounds('Yearly');
-
+  if (filter === 'all') {
+    return {
+      from: '1970-01-01T00:00:00',
+      to: '9999-12-31T23:59:59',
+    };
+    }
   if (!range) return periodBounds('Monthly');
 
   const from = new Date(
@@ -94,17 +101,18 @@ export default function AllTransactionsScreen() {
   const [exhausted, setExhausted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [filter, setFilter] = useState<FilterId>('month');
+  const [filter, setFilter] = useState<ActiveFilter>('all');
   const [customRange, setCustomRange] = useState<SelectedDateRange | null>(null);
   const [rangePickerOpen, setRangePickerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
-
+  
   const offset = useRef(0);
   const requestVersion = useRef(0);
   const loadingRef = useRef(false);
   const pendingReset = useRef(false);
   const screenActive = useRef(false);
+  const isFilterMode = filter !== 'all';
 
   const query = useMemo<Query>(() => {
     const bounds = getBounds(filter, customRange);
@@ -185,10 +193,13 @@ export default function AllTransactionsScreen() {
 
   function chooseFilter(next: FilterId) {
     if (next === 'custom') {
+      if (filter === 'custom') {
+        setFilter('all');
+        return;
+      }
       setRangePickerOpen(true);
-      return;
     }
-    setFilter(next);
+    setFilter(current => current === next ? 'all' : next);
   }
 
   function closeSearch() {
@@ -214,7 +225,10 @@ export default function AllTransactionsScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filters}
+        contentContainerStyle={[
+          styles.filters,
+          {marginTop: 15}
+        ]}
       >
         {FILTERS.map((item) => (
           <Pressable
@@ -273,13 +287,14 @@ export default function AllTransactionsScreen() {
         renderSectionHeader={({ section }) => (
           <Text variant="heading" style={styles.dateHeading}>{section.title}</Text>
         )}
-        renderItem={({ item }) => (
+        renderItem={({ item, index, section}) => (
           <TransactionPill
             merchantName={transactionTitle(item)}
             date={formatStamp(item.occurredAt)}
             code={item.code ?? (item.source === 'manual' ? 'Manual transaction' : 'No code')}
             amountText={transactionAmount(item)}
             amountColor={transactionAmountColor(item)}
+            isLast={index === section.data.length -1}
           />
         )}
         onEndReachedThreshold={0.45}
@@ -323,7 +338,7 @@ export default function AllTransactionsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: PAGE_BACKGROUND,
+    backgroundColor: "#fff",
   },
   header: {
     flexDirection: 'row',
@@ -395,15 +410,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   listContent: {
-    flexGrow: 1,
+    // flex: 1,
     paddingHorizontal: 18,
     paddingBottom: 100,
   },
   dateHeading: {
-    paddingTop: 16,
-    paddingBottom: 4,
+    paddingTop: 25,
+    // paddingBottom: 4,
     color: '#5D3BC8',
-    fontSize: 13,
+    fontWeight: 600,
+    fontSize: 17,
   },
   empty: {
     flex: 1,

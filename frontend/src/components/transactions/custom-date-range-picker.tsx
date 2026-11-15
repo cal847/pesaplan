@@ -33,6 +33,7 @@ const MONTHS = [
   'November',
   'December',
 ];
+const TODAY_KEY = dateKey(new Date());
 
 function dateKey(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -41,8 +42,9 @@ function dateKey(date: Date) {
 }
 
 function formatSelectedDate(date: Date | null) {
-  if (!date) return 'Choose date';
-  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  if (!date) return;
+  const month = MONTHS[date.getMonth()].slice(0, 3);
+  return `${month} ${date.getDate()}`;
 }
 
 export function CustomDateRangePicker({
@@ -82,6 +84,10 @@ export function CustomDateRangePicker({
     dateKey(toDate) >= dateKey(fromDate);
 
   function chooseDate(date: Date) {
+
+    // Prevent selecting future dates
+    if (dateKey(date) > TODAY_KEY) return;
+
     if (selection === 'from') {
       setFromDate(date);
       setToDate(null);
@@ -149,18 +155,8 @@ export function CustomDateRangePicker({
             })}
           </View>
 
-          <View style={styles.weekdays}>
-            {WEEKDAYS.map((day, index) => (
-              <Text key={`${day}-${index}`} style={styles.weekday}>
-                {day}
-              </Text>
-            ))}
-          </View>
-
           <View style={styles.monthHeader}>
-            <Text variant="heading" style={styles.monthTitle}>
-              {MONTHS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
-            </Text>
+            
             <View style={styles.monthControls}>
               <Pressable
                 accessibilityRole="button"
@@ -168,17 +164,28 @@ export function CustomDateRangePicker({
                 onPress={() => shiftMonth(-1)}
                 style={styles.monthButton}
               >
-                <Ionicons name="chevron-back" size={18} color="#40336F" />
+                <Ionicons name="chevron-back" size={15} color="#40336F" />
               </Pressable>
+              <Text variant="heading" style={styles.monthTitle}>
+                {MONTHS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+              </Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Next month"
                 onPress={() => shiftMonth(1)}
                 style={styles.monthButton}
               >
-                <Ionicons name="chevron-forward" size={18} color="#40336F" />
+                <Ionicons name="chevron-forward" size={15} color="#40336F" />
               </Pressable>
             </View>
+          </View>
+
+          <View style={styles.weekdays}>
+            {WEEKDAYS.map((day, index) => (
+              <Text key={`${day}-${index}`} style={styles.weekday}>
+                {day}
+              </Text>
+            ))}
           </View>
 
           <View style={styles.calendarGrid}>
@@ -190,8 +197,10 @@ export function CustomDateRangePicker({
               const toKey = toDate ? dateKey(toDate) : null;
               const selected = key === fromKey || key === toKey;
               const inRange = !!fromKey && !!toKey && key > fromKey && key < toKey;
+              const isFuture = key > TODAY_KEY;
+
               const disabled =
-                selection === 'to' && !!fromKey && key < fromKey;
+                isFuture || selection === 'to' && !!fromKey && key < fromKey;
 
               return (
                 <View
@@ -224,16 +233,14 @@ export function CustomDateRangePicker({
             })}
           </View>
 
-          {selection === 'to' && (
-            <Pressable
-              accessibilityRole="button"
-              disabled={!validRange}
-              onPress={() => validRange && onDone({ from: fromDate, to: toDate })}
-              style={[styles.doneButton, !validRange && styles.doneButtonDisabled]}
-            >
-              <Text style={styles.doneText}>Done</Text>
-            </Pressable>
-          )}
+          <Pressable
+            accessibilityRole="button"
+            disabled={!validRange}
+            onPress={() => validRange && onDone({ from: fromDate, to: toDate })}
+            style={[styles.doneButton, !validRange && styles.doneButtonDisabled]}
+          >
+            <Text style={styles.doneText}>Done</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -266,18 +273,20 @@ const styles = StyleSheet.create({
   },
   rangeSelector: {
     flexDirection: 'row',
+    alignSelf: 'center',
+    width: '95%',
     gap: 8,
     padding: 5,
-    borderRadius: 18,
+    borderRadius: 30,
     backgroundColor: '#F0EEF4',
-    marginBottom: 20,
+    marginBottom: 5,
   },
   rangeOption: {
     flex: 1,
-    minHeight: 58,
+    height: 48,
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    borderRadius: 14,
+    alignItems: 'center',
+    borderRadius: 25,
   },
   rangeOptionActive: {
     backgroundColor: '#FFFFFF',
@@ -287,10 +296,10 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   rangeLabel: {
-    fontWeight: '500',
+    fontWeight: '700',
     color: '#777382',
-    fontSize: 12,
-    textTransform: 'uppercase',
+    fontSize: 15,
+    alignSelf: 'center'
   },
   rangeLabelActive: {
     color: '#5A3BC4',
@@ -316,18 +325,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   monthHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    marginVertical: 20,
   },
   monthTitle: {
     color: '#211D2C',
-    fontSize: 16,
+    fontSize: 17,
+    minWidth: 145,
+    textAlign: 'center',
   },
   monthControls: {
     flexDirection: 'row',
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
   },
   monthButton: {
     width: 34,
@@ -375,11 +386,12 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   doneButton: {
-    minHeight: 48,
+    height: 45,
+    width: 130,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    marginTop: 16,
+    alignSelf: 'flex-end',
+    borderRadius: 40,
     backgroundColor: '#5D3BC8',
   },
   doneButtonDisabled: {

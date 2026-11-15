@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart, LineChart } from 'react-native-gifted-charts';
 import {
   ScrollView,
   StyleSheet,
@@ -9,15 +8,16 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { BarChart, LineChart } from 'react-native-gifted-charts';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Text } from '@/components/app-text';
-import { PAGE_BACKGROUND } from '@/constants/colors';
-import { DropdownPicker } from '@/components/shared/dropdown-picker';
-import { StatCard } from '@/components/analytics/stat-card';
-import { DonutChart, Slice } from '@/components/analytics/donut-chart';
 import { CategoryList } from '@/components/analytics/category-list';
+import { DonutChart, Slice } from '@/components/analytics/donut-chart';
+import { StatCard } from '@/components/analytics/stat-card';
+import { Text } from '@/components/app-text';
+import { DropdownPicker } from '@/components/shared/dropdown-picker';
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { ANALYTICS_PERIODS, AnalyticsPeriod } from '@/lib/analytics/series';
 import { formatKsh } from '@/lib/sms/money';

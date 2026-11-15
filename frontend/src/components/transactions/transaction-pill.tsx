@@ -8,9 +8,10 @@ type Props = {
   code: string;
   amountText: string;
   amountColor: string;
+  isLast?: boolean;
 };
 
-export function TransactionPill({ merchantName, date, code, amountText, amountColor }: Props) {
+export function TransactionPill({ merchantName, date, code, amountText, amountColor, isLast = false }: Props) {
   return (
     <View>
       <View style={styles.row}>
@@ -23,7 +24,8 @@ export function TransactionPill({ merchantName, date, code, amountText, amountCo
           {amountText}
         </Text>
       </View>
-      <View style={styles.divider} />
+
+      {!isLast && <View style={styles.divider}/>}
     </View>
   );
 }
@@ -35,6 +37,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     paddingVertical: 12,
+    paddingLeft: 5
   },
   details: {
     flex: 1,
@@ -42,7 +45,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   merchant: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#1A1724',
   },
@@ -56,7 +59,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     maxWidth: '46%',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     textAlign: 'right',
   },
