@@ -4,11 +4,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
-import { getConfig, LockConfig } from '@/lib/lock/service';
 import { shouldLock } from '@/lib/lock/rules';
+import { getConfig, LockConfig } from '@/lib/lock/service';
 import { clearRecord } from '@/lib/lock/storage';
 
-const INSTALL_MARKER = 'pesaplan.installed';
+const INSTALL_MARKER = 'pesabudge.installed';
 const OFF: LockConfig = { enabled: false, kind: 'pin', timeoutSec: 60, biometrics: false };
 
 // not React state, because nothing renders from it

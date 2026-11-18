@@ -1,8 +1,7 @@
 // frontend/src/components/lock/unlock-screen.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Pressable, StyleSheet, View } from 'react-native';
+import { AppState, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/app-text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,7 +56,7 @@ export function UnlockScreen() {
   }, [lockedOut]);
 
   const tryBiometric = useCallback(async () => {
-    const outcome = await promptBiometric('Unlock PesaPlan');
+    const outcome = await promptBiometric('Unlock PesaBudge');
     if (outcome === 'success') {
       await recordBiometricSuccess();
       unlock();
@@ -130,7 +129,7 @@ export function UnlockScreen() {
     <View style={[styles.root, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
       <View style={styles.brand}>
         <Ionicons name="wallet" size={28} color="#3F2FD6" />
-        <Text variant="heading" style={styles.brandText}>PesaPlan</Text>
+        <Text variant="heading" style={styles.brandText}>PesaBudge</Text>
       </View>
 
       <SecretInput

@@ -8,7 +8,6 @@ jest.mock('expo-crypto', () => {
 });
 
 import { BackupData, FORMAT_VERSION, parseBackup, serializeBackup } from './format';
-import { BackupData, FORMAT_VERSION, parseBackup, serializeBackup } from './format';
 const tx = (over: object = {}) => ({
   id: 't1', code: 'UEEMG49UN7', type: 'expense', amountCents: 3000, feeCents: 0, merchant: 'SHOP',
   accountNumber: null, categoryId: null, occurredAt: '2026-05-14T09:33', source: 'sms', createdAt: 1, ...over,
@@ -35,7 +34,7 @@ it('detects a file changed after it was written', async () => {
   expect(await parseBackup(text, SCHEMA)).toEqual({ ok: false, reason: 'corrupt' });
 });
 
-it('rejects files that are not PesaPlan backups', async () => {
+it('rejects files that are not PesaBudge backups', async () => {
   expect(await parseBackup('nope', SCHEMA)).toEqual({ ok: false, reason: 'not_json' });
   expect(await parseBackup('{"app":"other"}', SCHEMA)).toEqual({ ok: false, reason: 'wrong_app' });
 });

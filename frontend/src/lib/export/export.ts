@@ -53,7 +53,7 @@ export async function exportTransactions(
   const exportedAt = toLocalStamp(new Date());
   const input = { rows, totals, periodLabel: range.label, exportedAt };
   const { ext, mime, uti } = FORMATS[format];
-  const target = new File(freshExportDir(), `pesaplan-transactions-${exportedAt.slice(0, 10)}.${ext}`);
+  const target = new File(freshExportDir(), `pesabudge-transactions-${exportedAt.slice(0, 10)}.${ext}`);
 
   let uri: string;
   if (format === 'pdf') {

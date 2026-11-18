@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 
-export const BACKUP_APP = 'pesaplan';
+export const BACKUP_APP = 'pesabudge';
 export const FORMAT_VERSION = 1;
 
 export type BackupTransaction = {

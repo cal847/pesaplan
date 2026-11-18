@@ -158,7 +158,7 @@ export default function SplashRoute() {
             </Animated.View>
 
             <Animated.Text accessibilityRole="header" style={[styles.wordmark, wordStyle]}>
-              PesaPlan
+              PesaBudge
             </Animated.Text>
 
             <View style={styles.taglineRow} accessible accessibilityLabel={TAGLINE}>

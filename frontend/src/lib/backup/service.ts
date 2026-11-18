@@ -98,7 +98,7 @@ export async function runRestore(
 
     onProgress({ step: 'finding', percent: 10, email });
     const newest = (await listBackups(tokens))[0];
-    if (!newest) throw new BackupError('There is no PesaPlan backup in this Google account.', 'not_found');
+    if (!newest) throw new BackupError('There is no PesaBudge backup in this Google account.', 'not_found');
     throwIfCancelled(cancel);
 
     onProgress({ step: 'downloading', percent: 25, email });
@@ -107,9 +107,9 @@ export async function runRestore(
     const parsed = await parseBackup(text, await schemaVersion(db));
     if (!parsed.ok) {
       throw parsed.reason === 'too_new'
-        ? new BackupError('This backup was made by a newer version of PesaPlan. Update the app and try again.', 'too_new')
+        ? new BackupError('This backup was made by a newer version of PesaBudge. Update the app and try again.', 'too_new')
         : new BackupError(
-            parsed.reason === 'corrupt' ? 'The backup file is damaged, so it cannot be restored.' : "That file isn't a valid PesaPlan backup.",
+            parsed.reason === 'corrupt' ? 'The backup file is damaged, so it cannot be restored.' : "That file isn't a valid PesaBudge backup.",
             'invalid_backup'
           );
     }

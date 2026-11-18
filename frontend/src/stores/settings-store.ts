@@ -42,6 +42,6 @@ export const useSettingsStore = create<SettingsStore>()(
       lastBackupEmail: null,
       setLastBackup: (lastBackupAt, lastBackupEmail) => set({ lastBackupAt, lastBackupEmail }),
     }),
-    { name: 'pesaplan-settings', storage: createJSONStorage(() => AsyncStorage) }
+    { name: 'pesabudge-settings', storage: createJSONStorage(() => AsyncStorage) }
   )
 );

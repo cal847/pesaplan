@@ -50,7 +50,7 @@ export async function ensurePermission(
     const proceed = await new Promise<boolean>((resolve) =>
       Alert.alert(
         'Import M-Pesa messages?',
-        'PesaPlan can read the M-Pesa messages on this phone to record your transactions automatically. Only messages from M-PESA are used, and the messages themselves are not stored or sent anywhere.',
+        'PesaBudge can read the M-Pesa messages on this phone to record your transactions automatically. Only messages from M-PESA are used, and the messages themselves are not stored or sent anywhere.',
         [
           { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
           { text: 'Continue', onPress: () => resolve(true) },
@@ -64,7 +64,7 @@ export async function ensurePermission(
 
   return PermissionsAndroid.request(permission, {
     title: 'Allow SMS access',
-    message: 'PesaPlan reads M-Pesa messages to import transactions automatically.',
+    message: 'PesaBudge reads M-Pesa messages to import transactions automatically.',
     buttonPositive: 'Continue',
     buttonNegative: 'Not now',
   });

@@ -13,7 +13,7 @@ it('keeps the newest three backups and prunes the rest', () => {
 });
 
 it('builds a file name without colons or dots', () => {
-  expect(backupFileName(new Date('2026-11-17T14:30:05.123Z'))).toBe('pesaplan-backup-2026-11-17T14-30-05-123Z.json');
+  expect(backupFileName(new Date('2026-11-17T14:30:05.123Z'))).toBe('pesabudge-backup-2026-11-17T14-30-05-123Z.json');
 });
 
 it('builds a multipart body with both parts', () => {
