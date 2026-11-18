@@ -35,12 +35,27 @@ const INSERT = `
     (id, code, type, amount_cents, fee_cents, merchant, account_number,
      category_id, occurred_at, source, created_at, sim_key)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  ON CONFLICT(code, sim_key) DO NOTHING`;
+  ON CONFLICT(code, type) DO NOTHING`;
 
 type NewTransaction = Omit<StoredTransaction, 'id' | 'createdAt'>;
 
 /** Returns the new id, or null when the code already exists. */
 async function insert(db: Db, tx: NewTransaction): Promise<string | null> {
+  // Sending money to your alternate number is recorded and not marked as a duplicate
+  if (tx.code){
+    // Checks whether the transaction exists in the db then assigns the sim_key if it does.
+    const existing = await db.getFirstAsync<{ id: string; simKey: string}>(
+      'SELECT id, sim_key AS simKey FROM transactions WHERE code = ? AND type = ? LIMIT 1',
+      [tx.code, tx.type]
+    );
+    if (existing) {
+      // it now arrives with a known SIM, so tag the stored copy with it
+      if (tx.simKey && existing.simKey !== tx.simKey) {
+        await db.runAsync('UPDATE transactions SET sim_key = ? WHERE id = ?', [tx.simKey, existing.id]);
+      }
+      return null;
+    }
+  }
   const id = Crypto.randomUUID();
   const result = await db.runAsync(INSERT, [
     id, tx.code, tx.type, tx.amountCents, tx.feeCents, tx.merchant,

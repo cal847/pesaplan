@@ -54,7 +54,8 @@
       ],
       "expo-font",
       "expo-sqlite",
-      "expo-sharing"
+      "expo-sharing",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

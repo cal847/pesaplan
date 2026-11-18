@@ -1,5 +1,5 @@
 /**
- * Scans the inbox fornew M-Pesa messages. `force` rescans everything. Safe to call often.
+ * Scans the inbox for new M-Pesa messages. `force` rescans everything. Safe to call often.
  */
 
 import { Alert, PermissionsAndroid, Platform, ToastAndroid } from 'react-native';
@@ -12,6 +12,8 @@ import { useSettingsStore } from '@/stores/settings-store';
 
 import { readInbox, smsInboxAvailable } from '../../../modules/sms-reader';
 import { toCandidates } from './inbox';
+
+const activity = { restoring: false };
 
 const DAY = 86_400_000;
 const BATCH = 1000;
@@ -102,7 +104,7 @@ async function scan(sinceMs: number) {
 /** Scans the inbox for new M-Pesa messages. `force` rescans everything. Safe to call often. */
 export async function runSmsImport({ force = false }: { force?: boolean } = {}): Promise<void> {
   console.log('runSmsImport called, force:', force);
-  if (Platform.OS !== 'android' || running) return;
+  if (Platform.OS !== 'android' || running || activity.restoring) return;
   if (!smsInboxAvailable) {
     console.log('SMS inbox unavailable');
     return;
