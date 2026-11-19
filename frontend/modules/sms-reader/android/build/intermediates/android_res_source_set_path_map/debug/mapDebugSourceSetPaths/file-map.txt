@@ -1,9 +1,9 @@
-expo.modules.smsreader.sms-reader-pngs-0 /home/caleb/pesabudge/frontend/modules/sms-reader/android/build/generated/res/pngs/debug
-expo.modules.smsreader.sms-reader-updated_navigation_xml-1 /home/caleb/pesabudge/frontend/modules/sms-reader/android/build/generated/updated_navigation_xml/debug
-expo.modules.smsreader.sms-reader-mergeDebugResources-2 /home/caleb/pesabudge/frontend/modules/sms-reader/android/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
-expo.modules.smsreader.sms-reader-mergeDebugResources-3 /home/caleb/pesabudge/frontend/modules/sms-reader/android/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
-expo.modules.smsreader.sms-reader-debug-4 /home/caleb/pesabudge/frontend/modules/sms-reader/android/build/intermediates/merged_res/debug/mergeDebugResources
-expo.modules.smsreader.sms-reader-debug-5 /home/caleb/pesabudge/frontend/modules/sms-reader/android/build/intermediates/packaged_res/debug/packageDebugResources
-expo.modules.smsreader.sms-reader-debug-6 /home/caleb/pesabudge/frontend/modules/sms-reader/android/src/debug/res
-expo.modules.smsreader.sms-reader-main-7 /home/caleb/pesabudge/frontend/modules/sms-reader/android/src/main/res
+expo.modules.smsreader.sms-reader-pngs-0 /home/caleb/pesaplan/frontend/modules/sms-reader/android/build/generated/res/pngs/debug
+expo.modules.smsreader.sms-reader-updated_navigation_xml-1 /home/caleb/pesaplan/frontend/modules/sms-reader/android/build/generated/updated_navigation_xml/debug
+expo.modules.smsreader.sms-reader-mergeDebugResources-2 /home/caleb/pesaplan/frontend/modules/sms-reader/android/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+expo.modules.smsreader.sms-reader-mergeDebugResources-3 /home/caleb/pesaplan/frontend/modules/sms-reader/android/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+expo.modules.smsreader.sms-reader-debug-4 /home/caleb/pesaplan/frontend/modules/sms-reader/android/build/intermediates/merged_res/debug/mergeDebugResources
+expo.modules.smsreader.sms-reader-debug-5 /home/caleb/pesaplan/frontend/modules/sms-reader/android/build/intermediates/packaged_res/debug/packageDebugResources
+expo.modules.smsreader.sms-reader-debug-6 /home/caleb/pesaplan/frontend/modules/sms-reader/android/src/debug/res
+expo.modules.smsreader.sms-reader-main-7 /home/caleb/pesaplan/frontend/modules/sms-reader/android/src/main/res
 gradleHome-0 /home/caleb/.gradle

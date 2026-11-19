@@ -1,6 +1,6 @@
 /** Handles communication with Google Drive API
  * Handles errors
- * Formats files into readable pesaplan-backup- for easier lookup
+ * Formats files into readable pesabudge-backup- for easier lookup
  * Sends a multipart request
  * Cleans up past backups, except the most recent 'keep' value
  */
@@ -27,7 +27,7 @@ export class CancelToken {
   }
 }
 
-export const BACKUP_PREFIX = 'pesaplan-backup-';
+export const BACKUP_PREFIX = 'pesabudge-backup-';
 
 export const backupFileName = (now = new Date()) =>
   `${BACKUP_PREFIX}${now.toISOString().replace(/[:.]/g, '-')}.json`;

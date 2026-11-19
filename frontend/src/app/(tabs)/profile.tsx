@@ -5,7 +5,6 @@ import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/app-text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PAGE_BACKGROUND } from '@/constants/colors';
 import { LockSettings } from '@/components/lock/lock-settings';
 import { BackupSection } from '@/components/profile/backup-section';
 import { DisclosureRow, ROW_GUTTER } from '@/components/profile/disclosure-row';
@@ -13,6 +12,7 @@ import { DonateNumber } from '@/components/profile/donate-number';
 import { ExportModal } from '@/components/profile/export-modal';
 import { ImportPasteModal } from '@/components/profile/import-paste-modal';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PermissionId, pillLabel, tapAction } from '@/lib/permissions';
 import { ThemePreference, useSettingsStore } from '@/stores/settings-store';
@@ -181,7 +181,7 @@ export default function ProfileScreen() {
           <Divider />
           <DisclosureRow label="Donate" icon='heart' labelStyle={styles.rowLabel}>
             <Text style={styles.rowHint}>
-              Support the development of PesaPlan.
+              Support the development of PesaBudge.
             </Text>
             <DonateNumber/>
 

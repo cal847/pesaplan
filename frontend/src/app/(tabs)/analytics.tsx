@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -12,102 +13,179 @@ import { BarChart, LineChart } from 'react-native-gifted-charts';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CategoryList } from '@/components/analytics/category-list';
+// import { CategoryList } from '@/components/analytics/category-list';
 import { DonutChart, Slice } from '@/components/analytics/donut-chart';
 import { StatCard } from '@/components/analytics/stat-card';
 import { Text } from '@/components/app-text';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
-import { PAGE_BACKGROUND } from '@/constants/colors';
+import { Color } from '@/components/ui/color-pallete';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { ANALYTICS_PERIODS, AnalyticsPeriod } from '@/lib/analytics/series';
 import { formatKsh } from '@/lib/sms/money';
-import { useSettingsStore } from '@/stores/settings-store';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const VIEWS = ['Income vs Expense'/*'Category Spending'*/];
-const CHART_TYPES_BY_VIEW: Record<string, string[]> = {
+const VIEWS = ['Income vs Expense', 'Income', 'Expense'] as const;
+
+type ViewType = (typeof VIEWS)[number];
+
+const VIEW_COLORS = {
+  'Income vs Expense': {
+    primary: Color.blue[500],
+    light: Color.blue[50],
+    text: Color.blue[700],
+    background: [Color.blue[50], '#FFFFFF', '#FFFFFF'],
+  },
+  Income: {
+    primary: Color.green[500],
+    light: Color.green[50],
+    text: Color.green[700],
+    background: [Color.green[50], '#FFFFFF', '#FFFFFF'],
+  },
+  Expense: {
+    primary: Color.red[500],
+    light: Color.red[50],
+    text: Color.red[700],
+    background: [Color.red[50], '#FFFFFF', '#FFFFFF'],
+  },
+  // 'Category Spending': {
+  //   primary: Color.purple[500],
+  //   light: Color.purple[50],
+  //   text: Color.purple[700],
+  //   background: [Color.purple[50], '#FFFFFF', '#FFFFFF'],
+  // },
+} as const;
+
+type MetricTheme = {
+  primary: string;
+  secondary: string;
+  light: string;
+  lighter: string;
+  text: string;
+};
+
+const METRIC_COLORS: Record<'income' | 'expense' | 'both', MetricTheme> = {
+  income: {
+    primary: Color.green[500],
+    secondary: Color.green[300],
+    light: Color.green[100],
+    lighter: Color.green[50],
+    text: Color.green[700],
+  },
+  expense: {
+    primary: Color.red[500],
+    secondary: Color.red[300],
+    light: Color.red[100],
+    lighter: Color.red[50],
+    text: Color.red[700],
+  },
+  both: {
+    primary: Color.blue[600],
+    secondary: Color.blue[400],
+    light: Color.blue[100],
+    lighter: Color.blue[50],
+    text: Color.blue[700],
+  },
+};
+
+
+const CHART_TYPES_BY_VIEW: Record<ViewType, string[]> = {
   'Income vs Expense': ['Bar Chart', 'Line Chart', 'Pie Chart'],
-  'Category Spending': ['Bar Chart', 'Pie Chart'],
+  Income: ['Bar Chart', 'Line Chart', 'Pie Chart'],
+  Expense: ['Bar Chart', 'Line Chart', 'Pie Chart'],
+  // 'Category Spending': ['Bar Chart', 'Pie Chart'],
 };
 
-// Match the bright cyan and amber used by the income and expense stat cards.
-const INCOME_COLOR = '#3FBCE3';
-const EXPENSE_COLOR = '#F8B64D';
+// type Category = {
+//   name: string;
+//   short: string;
+//   amount: number;
+//   color: string;
+// };
 
-// Colors for Pie Chart in income_vs_expense
-const INCOME_COLOR_2 = '#1038bc';
-const EXPENSE_COLOR_2 = '#c9170e';
-
-type Category = { name: string; short: string; amount: number; color: string };
-
-const CATEGORIES: Record<string, Category[]> = {
-  Weekly: [
-    { name: 'Food', short: 'Food', amount: 2400, color: '#6D4FF2' },
-    { name: 'Transport', short: 'Transp.', amount: 1500, color: '#4FA8F2' },
-    { name: 'Shopping', short: 'Shop', amount: 1350, color: '#C98DE8' },
-    { name: 'Utilities', short: 'Utils', amount: 950, color: '#58D68D' },
-    { name: 'Other', short: 'Other', amount: 800, color: '#B0B0C0' },
-    { name: 'Subscriptions', short: 'Subs', amount: 650, color: '#F2C14E' },
-  ],
-  Monthly: [
-    { name: 'Rent', short: 'Rent', amount: 15000, color: '#F2735A' },
-    { name: 'Food', short: 'Food', amount: 7500, color: '#6D4FF2' },
-    { name: 'Transport', short: 'Transp.', amount: 3800, color: '#4FA8F2' },
-    { name: 'Utilities', short: 'Utils', amount: 2600, color: '#58D68D' },
-    { name: 'Shopping', short: 'Shop', amount: 2100, color: '#C98DE8' },
-    { name: 'Subscriptions', short: 'Subs', amount: 1900, color: '#F2C14E' },
-  ],
-  Yearly: [
-    { name: 'Rent', short: 'Rent', amount: 300000, color: '#F2735A' },
-    { name: 'Food', short: 'Food', amount: 150000, color: '#6D4FF2' },
-    { name: 'Shopping', short: 'Shop', amount: 79000, color: '#C98DE8' },
-    { name: 'Transport', short: 'Transp.', amount: 70000, color: '#4FA8F2' },
-    { name: 'Utilities', short: 'Utils', amount: 55000, color: '#58D68D' },
-    { name: 'Subscriptions', short: 'Subs', amount: 40000, color: '#F2C14E' },
-  ],
-};
-
-const compact = (n: number) => (n >= 1000 ? `${+(n / 1000).toFixed(1)}k` : String(n));
+const compact = (value: number) =>
+  value >= 1000 ? `${+(value / 1000).toFixed(1)}k` : String(value);
 
 export default function AnalyticsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
-  const [view, setView] = useState(VIEWS[0]);
-  const [period, setPeriod] = useState('Monthly');
+  const [view, setView] = useState<ViewType>('Income vs Expense');
+  const [viewPickerOpen, setViewPickerOpen] = useState(false);
+  const [period, setPeriod] = useState<AnalyticsPeriod>('Monthly');
   const [chartType, setChartType] = useState('Bar Chart');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
+  const theme = VIEW_COLORS[view];
   const data = useAnalytics(period);
-  const spendingPeriod = useSettingsStore((s) => s.spendingPeriod);
 
-  useEffect(() => setSelectedIndex(null), [view, period, chartType]);
+  useEffect(() => {
+    setSelectedIndex(null);
+  }, [view, period, chartType]);
 
-  const isCategoryView = view === 'Category Spending';
+  // const isCategoryView = view === 'Category Spending';
+  const isIncomeOnly = view === 'Income';
+  const isExpenseOnly = view === 'Expense';
+
+  const metric: 'income' | 'expense' | 'both' = isIncomeOnly
+    ? 'income'
+    : isExpenseOnly
+      ? 'expense'
+      : 'both';
+
+  const colors = METRIC_COLORS[metric];
+
   const trend = useMemo(
     () =>
-      (data?.points ?? []).map((p) => ({
-        label: p.label,
-        income: p.incomeCents / 100,
-        expense: p.expenseCents / 100,
+      (data?.points ?? []).map((point) => ({
+        label: point.label,
+        income: isExpenseOnly ? 0 : point.incomeCents / 100,
+        expense: isIncomeOnly ? 0 : point.expenseCents / 100,
       })),
-    [data]
+    [data, isIncomeOnly, isExpenseOnly]
   );
 
   const totals = data?.totals;
-  const hasData = !!totals && (totals.incomeCents > 0 || totals.expenseCents > 0);
+  const hasData =
+    !!totals && (totals.incomeCents > 0 || totals.expenseCents > 0);
 
-  const categories = useMemo(
-    () => [...CATEGORIES[period]].sort((a, b) => b.amount - a.amount),
-    [period]
-  );
-  const categoryTotal = categories.reduce((s, c) => s + c.amount, 0);
+  // const categories = useMemo(
+  //   () => [...CATEGORIES[period]].sort((a, b) => b.amount - a.amount),
+  //   [period]
+  // );
 
-  const slices: Slice[] = isCategoryView
-    ? categories.map((c) => ({ label: c.name, value: c.amount, color: c.color }))
-    : [
-        { label: 'Income', value: totals?.incomeCents ?? 0, color: INCOME_COLOR_2 },
-        { label: 'Expense', value: totals?.expenseCents ?? 0, color: EXPENSE_COLOR_2 },
-      ];
+  // const categoryTotal = categories.reduce(
+  //   (total, category) => total + category.amount,
+  //   0
+  // );
+
+  const slices: Slice[] = isIncomeOnly
+    ? [
+        {
+          label: 'Income',
+          value: totals?.incomeCents ?? 0,
+          color: METRIC_COLORS.income.primary,
+        },
+      ]
+    : isExpenseOnly
+      ? [
+          {
+            label: 'Expense',
+            value: totals?.expenseCents ?? 0,
+            color: METRIC_COLORS.expense.primary,
+          },
+        ]
+      : [
+          {
+            label: 'Income',
+            value: totals?.incomeCents ?? 0,
+            color: METRIC_COLORS.income.primary,
+          },
+          {
+            label: 'Expense',
+            value: totals?.expenseCents ?? 0,
+            color: METRIC_COLORS.expense.primary,
+          },
+        ];
 
   const chartWidth = width - 90;
 
@@ -119,101 +197,161 @@ export default function AnalyticsScreen() {
     xAxisColor: '#E5E3F0',
     rulesColor: '#EEECF6',
     yAxisLabelWidth: 38,
-    yAxisTextStyle: { color: '#999', fontSize: 10 },
-    xAxisLabelTextStyle: { color: '#999', fontSize: 10, textAlign: 'center' as const },
+    yAxisTextStyle: { color: theme.text, fontSize: 10 },
+    xAxisLabelTextStyle: {
+      color: theme.text,
+      fontSize: 10,
+      textAlign: 'center' as const,
+    },
     formatYLabel: (label: string) => compact(Number(label)),
-    disableScroll: true,
     isAnimated: true,
     barBorderRadius: 4,
     initialSpacing: 6,
     endSpacing: 0,
   };
 
-  function handleViewChange(next: string) {
-    setView(next);
-    if (!CHART_TYPES_BY_VIEW[next].includes(chartType)) {
+  function handleViewChange(nextView: ViewType) {
+    setView(nextView);
+    setViewPickerOpen(false);
+
+    if (!CHART_TYPES_BY_VIEW[nextView].includes(chartType)) {
       setChartType('Bar Chart');
     }
   }
 
   function renderBars() {
-    if (isCategoryView) {
-      const spacing = Math.max(8, Math.floor(chartWidth / categories.length) - 28);
-      return (
-        <BarChart
-          {...barCommon}
-          data={categories.map((c) => ({
-            value: c.amount,
-            label: c.short,
-            frontColor: c.color,
-          }))}
-          barWidth={28}
-          spacing={spacing}
-        />
-      );
-    }
-    
+    // if (isCategoryView) {
+    //   const spacing = Math.max(
+    //     8,
+    //     Math.floor(chartWidth / categories.length) - 28
+    //   );
+    //
+    //   return (
+    //     <BarChart
+    //       {...barCommon}
+    //       data={categories.map((category) => ({
+    //         value: category.amount,
+    //         label: category.short,
+    //         frontColor: category.color,
+    //       }))}
+    //       barWidth={50}
+    //       spacing={spacing}
+    //       showGradient
+    //       gradientColor={gradientColor}
+    //     />
+    //   );
+    // }
+
     const unit = chartWidth / trend.length;
+    const barWidth = 30
+    const innerGap = 5;
+    const groupGap = 20
 
-    // Allows bar width to adjust as periods get longer
-    const barWidth = Math.max(5, Math.min(15, Math.floor(unit * 0.3)));
-    const innerGap = 2;
-    const groupGap = Math.max(4, unit - 2 * barWidth - innerGap);
+    const chartData = trend.flatMap((point) => {
+      const bars = [];
 
-    const data = trend.flatMap((r) => [
-      {
-        value: r.income,
-        frontColor: INCOME_COLOR,
-        spacing: innerGap,
-        label: r.label,
-        labelWidth: 2 * barWidth + innerGap,
-      },
-      { value: r.expense, frontColor: EXPENSE_COLOR, spacing: groupGap },
-    ]);
+      if (!isExpenseOnly) {
+        bars.push({
+          value: point.income,
+          frontColor: METRIC_COLORS.income.primary,
+          gradientColor: METRIC_COLORS.income.light,
+          spacing: isIncomeOnly ? 20 : 5,
+          label: point.label,
+          labelWidth: isIncomeOnly ? 40 : 65,
+        });
+      }
 
-    return <BarChart {...barCommon} data={data} barWidth={barWidth} />;
+      if (!isIncomeOnly) {
+        bars.push({
+          value: point.expense,
+          frontColor: METRIC_COLORS.expense.primary,
+          gradientColor: METRIC_COLORS.expense.light,
+          spacing: 20,
+        });
+      }
+
+      return bars;
+    });
+
+    return (
+      <BarChart
+        {...barCommon}
+        data={chartData}
+        barWidth={barWidth}
+        showGradient
+      />
+    );
   }
 
   function renderLines() {
-    const n = trend.length;
+    const points = trend.length;
     const edge = 12;
-    const spacing = n > 1 ? (chartWidth - edge * 2) / (n - 1) : 0;
+    const spacing =
+      points > 1 ? (chartWidth - edge * 2) / (points - 1) : 0;
+
+    const incomeData = trend.map((point) => ({
+      value: point.income,
+      label: point.label,
+    }));
+
+    const expenseData = trend.map((point) => ({
+      value: point.expense,
+      label: point.label,
+    }));
+
+    const isCombinedView = !isIncomeOnly && !isExpenseOnly;
 
     return (
       <LineChart
-        data={trend.map((r) => ({ value: r.income, label: r.label }))}
-        data2={trend.map((r) => ({ value: r.expense }))}
-        color1={INCOME_COLOR_2}
-        color2={EXPENSE_COLOR_2}
-        dataPointsColor1={INCOME_COLOR_2}
-        dataPointsColor2={EXPENSE_COLOR_2}
-        dataPointsRadius={n > 8 ? 2 : 4}
-        thickness={1}
+        data={isExpenseOnly ? expenseData : incomeData}
+        {...(isCombinedView ? { data2: expenseData } : {})}
+        color1={
+          isExpenseOnly
+            ? METRIC_COLORS.expense.primary
+            : METRIC_COLORS.income.primary
+        }
+        color2={
+          isCombinedView
+            ? METRIC_COLORS.expense.primary
+            : METRIC_COLORS.income.primary
+        }
+        dataPointsColor1={
+          isExpenseOnly
+            ? METRIC_COLORS.expense.primary
+            : METRIC_COLORS.income.primary
+        }
+        dataPointsColor2={
+          isCombinedView
+            ? METRIC_COLORS.expense.primary
+            : METRIC_COLORS.income.primary
+        }
+        dataPointsRadius={points > 8 ? 2 : 4}
+        thickness={2.5}
         width={chartWidth}
         height={180}
         noOfSections={4}
         spacing={spacing}
         initialSpacing={edge}
         endSpacing={edge}
+        overflowTop={10}
         yAxisThickness={0}
         xAxisColor="#E5E3F0"
         rulesColor="#EEECF6"
         yAxisLabelWidth={38}
-        yAxisTextStyle={{ color: '#999', fontSize: 10 }}
-        xAxisLabelTextStyle={{ color: '#999', fontSize: 10, textAlign: 'center' }}
+        yAxisTextStyle={{ color: '#999999', fontSize: 10 }}
+        xAxisLabelTextStyle={{
+          color: '#999999',
+          fontSize: 10,
+          textAlign: 'center',
+        }}
         formatYLabel={(label: string) => compact(Number(label))}
-        disableScroll
         isAnimated
       />
     );
   }
 
-  // Determine legend colors based on current chart type
-  const legendIncomeColor = chartType === 'Pie Chart' ? INCOME_COLOR_2 : INCOME_COLOR;
-  const legendExpenseColor = chartType === 'Pie Chart' ? EXPENSE_COLOR_2 : EXPENSE_COLOR;
-
-  // For budget card stats
   const budget = data?.budget;
+
   const budgetValue = !budget
     ? '—'
     : budget.limitCents === null
@@ -221,95 +359,183 @@ export default function AnalyticsScreen() {
       : formatKsh(budget.spentCents);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/home');
-            }
-          }}
-        >
-          <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
-        </TouchableOpacity>
-        <Text variant="heading" style={styles.title}>Activity</Text>
-        <Ionicons name="notifications-outline" size={22} color="#1A1A1A" />
-      </View>
+    <LinearGradient
+      colors={theme.background}
+      locations={[0, 0.4, 1]}
+      style={{ flex: 1 }}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/home');
+              }
+            }}
+          >
+            <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
+          </TouchableOpacity>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.chartCard}>
-          <View style={styles.chartControlsRow}>
-            <DropdownPicker
-              label="View"
-              options={VIEWS}
-              selected={view}
-              onSelect={handleViewChange}
-              triggerTextStyle={styles.viewTrigger}
-              containerStyle={styles.viewPicker}
-            />
+          <Text variant="heading" style={styles.title}>
+            Activity
+          </Text>
 
-            <View style={styles.filterGroup}>
-              <DropdownPicker
-                label="Period"
-                options={ANALYTICS_PERIODS}
-                selected={period}
-                onSelect={(v) => setPeriod(v as AnalyticsPeriod)}
-              />
-
-              <DropdownPicker
-                label="Chart Type"
-                options={CHART_TYPES_BY_VIEW[view]}
-                selected={chartType}
-                onSelect={setChartType}
-              />
-            </View>
-          </View>
-
-          <View style={styles.chartArea}>
-            {data === null ? null : !hasData ? (
-              <Text style={styles.empty}>No income or spending recorded in this period.</Text>
-            ): chartType === 'Pie Chart' ? (
-              <DonutChart
-                key={`${view}-${period}`}
-                slices={slices}
-                selectedIndex={selectedIndex}
-                onSelect={setSelectedIndex}
-                formatAmount={formatKsh}
-              />
-            ) : chartType === 'Line Chart' ? (
-              <View key={`${view}-${period}-lines`}>{renderLines()}</View>
-            ) : (
-              <View key={`${view}-${period}-bars`}>{renderBars()}</View>
-            )}
-          </View>
-
-          {!isCategoryView && (
-            <View style={styles.legend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: legendIncomeColor }]} />
-                <Text style={styles.legendText}>Income</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: legendExpenseColor }]} />
-                <Text style={styles.legendText}>Expense</Text>
-              </View>
-            </View>
-          )}
+          <View style={{ width: 22 }} />
         </View>
 
-        {isCategoryView ? (
-          <Animated.View key="list" entering={FadeInDown.duration(250)}>
-            <CategoryList
-              items={categories.map((c) => ({ name: c.name, amount: c.amount, color: c.color }))}
-              total={categoryTotal}
-              selectedIndex={chartType === 'Pie Chart' ? selectedIndex : null}
-              formatAmount={formatKsh}
-            />
-          </Animated.View>
-        ) : (
-          <Animated.View key="grid" entering={FadeInDown.duration(250)} style={styles.grid}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.chartCard}>
+            <View style={styles.chartControlsRow}>
+              <View style={{ position: 'relative', zIndex: 10 }}>
+                <Pressable
+                  onPress={() => setViewPickerOpen((previous) => !previous)}
+                  style={styles.viewPicker}
+                >
+                  <Text
+                    style={[styles.viewTrigger, { color: theme.text }]}
+                  >
+                    {view}
+                  </Text>
+                </Pressable>
+
+                {viewPickerOpen && (
+                  <View style={styles.viewDropdown}>
+                    {VIEWS.map((option) => {
+                      const optionTheme = VIEW_COLORS[option];
+                      const isSelected = view === option;
+
+                      return (
+                        <Pressable
+                          key={option}
+                          onPress={() => handleViewChange(option)}
+                          style={[
+                            styles.viewOption,
+                            isSelected && {
+                              backgroundColor: optionTheme.light,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.optionDot,
+                              { backgroundColor: optionTheme.primary },
+                            ]}
+                          />
+
+                          <Text
+                            style={[
+                              styles.viewOptionText,
+                              isSelected && {
+                                color: optionTheme.text,
+                                fontWeight: '700',
+                              },
+                            ]}
+                          >
+                            {option}
+                          </Text>
+
+                          {isSelected && (
+                            <View
+                              style={[
+                                styles.checkmark,
+                                { backgroundColor: optionTheme.primary },
+                              ]}
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.filterGroup}>
+                <DropdownPicker
+                  label="Period"
+                  options={ANALYTICS_PERIODS}
+                  selected={period}
+                  onSelect={(value) => setPeriod(value as AnalyticsPeriod)}
+                />
+
+                <DropdownPicker
+                  label="Chart Type"
+                  options={CHART_TYPES_BY_VIEW[view]}
+                  selected={chartType}
+                  onSelect={setChartType}
+                />
+              </View>
+            </View>
+
+            <View style={styles.chartArea}>
+              {data === null ? null : !hasData ? (
+                <Text style={styles.empty}>
+                  No data recorded in this period.
+                </Text>
+              ) : chartType === 'Pie Chart' ? (
+                <DonutChart
+                  key={`${view}-${period}`}
+                  slices={slices}
+                  selectedIndex={selectedIndex}
+                  onSelect={setSelectedIndex}
+                  formatAmount={formatKsh}
+                />
+              ) : chartType === 'Line Chart' ? (
+                <View key={`${view}-${period}-lines`}>{renderLines()}</View>
+              ) : (
+                <View key={`${view}-${period}-bars`}>{renderBars()}</View>
+              )}
+            </View>
+
+            <View style={styles.legend}>
+              {!isExpenseOnly && (
+                <View style={styles.legendItem}>
+                  <View
+                    style={[
+                      styles.legendDot,
+                      { backgroundColor: METRIC_COLORS.income.primary },
+                    ]}
+                  />
+                  <Text style={styles.legendText}>Income</Text>
+                </View>
+              )}
+
+              {!isIncomeOnly && (
+                <View style={styles.legendItem}>
+                  <View
+                    style={[
+                      styles.legendDot,
+                      { backgroundColor: METRIC_COLORS.expense.primary },
+                    ]}
+                  />
+                  <Text style={styles.legendText}>Expense</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* {isCategoryView ? (
+            <Animated.View key="list" entering={FadeInDown.duration(250)}>
+              <CategoryList
+                items={categories.map((category) => ({
+                  name: category.name,
+                  amount: category.amount,
+                  color: category.color,
+                }))}
+                total={categoryTotal}
+                selectedIndex={
+                  chartType === 'Pie Chart' ? selectedIndex : null
+                }
+                formatAmount={formatKsh}
+              />
+            </Animated.View>
+          ) : ( */}
+          <Animated.View
+            key="grid"
+            entering={FadeInDown.duration(250)}
+            style={styles.grid}
+          >
             <View style={styles.gridRow}>
               <StatCard
                 icon="arrow-up"
@@ -320,6 +546,7 @@ export default function AnalyticsScreen() {
                 labelStyle={styles.receivedLabel}
                 valueStyle={styles.receivedValue}
               />
+
               <StatCard
                 icon="arrow-down"
                 label="You've Spent"
@@ -330,6 +557,7 @@ export default function AnalyticsScreen() {
                 valueStyle={styles.spentValue}
               />
             </View>
+
             <View style={styles.gridRow}>
               <StatCard
                 icon="arrow-down-circle"
@@ -342,6 +570,7 @@ export default function AnalyticsScreen() {
                 valueStyle={styles.budgetValue}
                 progressFillStyle={styles.budgetProgressFill}
               />
+
               <StatCard
                 icon="disc"
                 label="Goals Achieved"
@@ -355,14 +584,17 @@ export default function AnalyticsScreen() {
               />
             </View>
           </Animated.View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          {/* )} */}
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: PAGE_BACKGROUND },
+  safeArea: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -374,29 +606,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#1A1A1A',
   },
-  scroll: { paddingHorizontal: 16, paddingBottom: 100 },
+  scroll: {
+    paddingHorizontal: 16,
+    paddingBottom: 100,
+  },
   chartCard: {
-    backgroundColor: '#FFF',
     borderRadius: 20,
     padding: 16,
     marginBottom: 20,
     minHeight: 370,
     width: '105%',
-    alignSelf: 'center'
-  },
-  legend: { flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 12 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 12, color: '#555' },
-  grid: { gap: 12 },
-  progressCardValue: {
-    marginTop: 25,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: 5,
-    width: '105%',
-    alignSelf: 'center'
+    alignSelf: 'center',
   },
   chartControlsRow: {
     flexDirection: 'row',
@@ -411,17 +631,101 @@ const styles = StyleSheet.create({
     minHeight: 180,
     justifyContent: 'center',
   },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 18,
+    marginTop: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#555555',
+  },
+  grid: {
+    gap: 12,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: 5,
+    width: '105%',
+    alignSelf: 'center',
+  },
   viewPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 8,
+    minWidth: 140,
+  },
+  viewTrigger: {
+    fontSize: 15,
+    fontWeight: '700',
+    fontStyle: 'italic',
+  },
+  viewDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E3F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  viewOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  optionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  checkmark: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  viewOptionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1A1A1A',
+  },
+  filterGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     flexShrink: 1,
   },
   receivedLabel: {
-    color: '#05092e',
+    color: '#05092E',
   },
   receivedValue: {
-    color: '#05092e',
+    color: '#05092E',
     fontWeight: '800',
   },
-
   spentLabel: {
     color: '#482001',
   },
@@ -429,7 +733,6 @@ const styles = StyleSheet.create({
     color: '#482001',
     fontWeight: '800',
   },
-
   budgetLabel: {
     color: '#043404',
   },
@@ -441,28 +744,20 @@ const styles = StyleSheet.create({
   budgetProgressFill: {
     backgroundColor: '#1B6E3C',
   },
-
   goalsLabel: {
-    color: '#0e0215',
+    color: '#0E0215',
   },
   goalsValue: {
-    color: '#20062e',
+    color: '#20062E',
     fontWeight: '800',
     marginTop: 18,
   },
   goalsProgressFill: {
     backgroundColor: '#6A1B9A',
   },
-  viewTrigger: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontStyle: 'italic',
-    color: '#1A1A1A',
-  },
-  filterGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flexShrink: 1,
+  empty: {
+    textAlign: 'center',
+    color: '#777777',
+    fontSize: 14,
   },
 });
