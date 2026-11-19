@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { BarChart, LineChart } from 'react-native-gifted-charts';
+import { BarChart, CurveType, LineChart } from 'react-native-gifted-charts';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -192,7 +192,6 @@ export default function AnalyticsScreen() {
   const barCommon = {
     width: chartWidth,
     height: 180,
-    noOfSections: 4,
     yAxisThickness: 0,
     xAxisColor: '#E5E3F0',
     rulesColor: '#EEECF6',
@@ -243,9 +242,20 @@ export default function AnalyticsScreen() {
     // }
 
     const unit = chartWidth / trend.length;
-    const barWidth = 30
-    const innerGap = 5;
-    const groupGap = 20
+    const barWidth = 50
+
+    const incomeValues = isExpenseOnly
+      ? []
+      : trend.map((point) => point.income);
+
+    const expenseValues = isIncomeOnly
+      ? []
+      : trend.map((point) => point.expense);
+
+    const visibleValues = [...incomeValues, ...expenseValues];
+
+    const { maxValue, stepValue, noOfSections } =
+      getChartScale(visibleValues);
 
     const chartData = trend.flatMap((point) => {
       const bars = [];
@@ -253,20 +263,21 @@ export default function AnalyticsScreen() {
       if (!isExpenseOnly) {
         bars.push({
           value: point.income,
-          frontColor: METRIC_COLORS.income.primary,
-          gradientColor: METRIC_COLORS.income.light,
-          spacing: isIncomeOnly ? 20 : 5,
+          frontColor: METRIC_COLORS.income.light,
+          gradientColor: METRIC_COLORS.income.primary,
+          spacing: isIncomeOnly ? 30 : 5,
           label: point.label,
-          labelWidth: isIncomeOnly ? 40 : 65,
+          labelWidth: isIncomeOnly ? 40 : 80,
         });
       }
 
       if (!isIncomeOnly) {
         bars.push({
           value: point.expense,
-          frontColor: METRIC_COLORS.expense.primary,
-          gradientColor: METRIC_COLORS.expense.light,
-          spacing: 20,
+          frontColor: METRIC_COLORS.expense.light,
+          gradientColor: METRIC_COLORS.expense.primary,
+          label: point.label,
+          spacing: isIncomeOnly ? 15 : 25,
         });
       }
 
@@ -279,8 +290,33 @@ export default function AnalyticsScreen() {
         data={chartData}
         barWidth={barWidth}
         showGradient
+
+        maxValue={maxValue}
+        stepValue={stepValue}
+        noOfSections={noOfSections}
       />
     );
+  }
+
+  // Calculates the scale of the charts based on available values
+  function getChartScale(values: number[]) {
+    const maxValue = Math.max(...values, 0);
+
+    if (maxValue <= 0) {
+      return { maxValue: 100, stepValue: 25, noOfSections: 4 };
+    }
+
+    const targetSteps = 4;
+    const rawStep = maxValue / targetSteps;
+
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const stepValue = Math.ceil(rawStep / magnitude) * magnitude;
+
+    return {
+      stepValue,
+      noOfSections: targetSteps,
+      maxValue: stepValue * targetSteps,
+    };
   }
 
   function renderLines() {
@@ -300,6 +336,18 @@ export default function AnalyticsScreen() {
     }));
 
     const isCombinedView = !isIncomeOnly && !isExpenseOnly;
+
+    const visibleValues = isExpenseOnly
+      ? expenseData.map((item) => item.value)
+      : isIncomeOnly ?
+        incomeData.map((item) => item.value)
+      : [
+          ...incomeData.map((item) => item.value),
+          ...expenseData.map((item) => item.value),
+      ];
+
+  const { maxValue, stepValue, noOfSections } =
+    getChartScale(visibleValues);
 
     return (
       <LineChart
@@ -326,14 +374,44 @@ export default function AnalyticsScreen() {
             : METRIC_COLORS.income.primary
         }
         dataPointsRadius={points > 8 ? 2 : 4}
-        thickness={2.5}
         width={chartWidth}
         height={180}
-        noOfSections={4}
+        curved
+        curvature={0.1}
+        curveType={CurveType.QUADRATIC}
+        areaChart
+        // isCombined == true
+        startFillColor={
+          isExpenseOnly
+            ? METRIC_COLORS.expense.primary
+            : METRIC_COLORS.income.primary
+        }
+        endFillColor={
+          isExpenseOnly
+            ? METRIC_COLORS.expense.light
+            : METRIC_COLORS.income.light
+        }
+        startOpacity={0.28}
+        endOpacity={0.02}
+
+        // For combined view
+        {...(isCombinedView
+        ? {
+            startFillColor2: METRIC_COLORS.expense.primary,
+            endFillColor2: METRIC_COLORS.expense.light,
+            startOpacity2: 0.28,
+            endOpacity2: 0.02,
+          }
+        : {})}
+
+        noOfSections={noOfSections}
         spacing={spacing}
         initialSpacing={edge}
         endSpacing={edge}
+        maxValue={maxValue}
+        stepValue={stepValue}
         overflowTop={10}
+
         yAxisThickness={0}
         xAxisColor="#E5E3F0"
         rulesColor="#EEECF6"
@@ -615,7 +693,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
     minHeight: 370,
-    width: '105%',
+    // width: '105%',
     alignSelf: 'center',
   },
   chartControlsRow: {
