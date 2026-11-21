@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/app-text';
-
 export type SummaryItem = {
   label: string;
-  value: string;
+  value: string | null;
+  amount?: string;
   color?: string;
   trend?: 'up' | 'down' | 'neutral';
   trendColor?: string;
@@ -58,7 +58,7 @@ function SummaryCell({ item }: { item: SummaryItem }) {
       <Text style={styles.label}>{item.label}</Text>
 
       <View style={styles.valueRow}>
-        <Text style={[styles.value, { color: item.color ?? '#1A1A1A' }]}>
+        <Text style={[styles.value, { color: item.color ?? '#1a1a1aba' }]}>
           {item.value}
         </Text>
 
@@ -70,6 +70,10 @@ function SummaryCell({ item }: { item: SummaryItem }) {
           />
         )}
       </View>
+
+      {item.amount !== undefined && (
+        <Text style={[styles.amount, { color: item.color ?? '#1a1a1ad4' }]}>{item.amount}</Text>
+      )}
     </View>
   );
 }
@@ -78,7 +82,7 @@ const styles = StyleSheet.create({
   grid: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    paddingVertical: 4,
+    // paddingVertical: 4,
   },
   row: {
     flexDirection: 'row',
@@ -103,6 +107,11 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 16,
+    fontWeight: '700',
+  },
+  amount: {
+    fontSize: 16,
+    paddingTop: 4,
     fontWeight: '700',
   },
   verticalDivider: {

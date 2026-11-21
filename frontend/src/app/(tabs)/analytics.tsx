@@ -13,19 +13,42 @@ import { BarChart, CurveType, LineChart } from 'react-native-gifted-charts';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// import { CategoryList } from '@/components/analytics/category-list';
 import { DonutChart, Slice } from '@/components/analytics/donut-chart';
 import { SummaryGrid, SummaryItem } from '@/components/analytics/stat-summary';
 import { Text } from '@/components/app-text';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
-import { Color } from '@/components/ui/color-pallete';
+import { Color, METRIC_COLORS } from '@/components/ui/color-pallete';
+import {
+  type DateRange,
+  type PeriodFilterId
+} from '@/components/ui/period-filters';
 import { useAnalytics } from '@/hooks/use-analytics';
-import { ANALYTICS_PERIODS, AnalyticsPeriod } from '@/lib/analytics/series';
+import {
+  ANALYTICS_PERIODS,
+  AnalyticsPeriod,
+} from '@/lib/analytics/series';
+import { normalizedMerchant } from '@/lib/db/transactions';
+import { periodBounds } from '@/lib/period';
 import { formatKsh } from '@/lib/sms/money';
 import { LinearGradient } from 'expo-linear-gradient';
+
 const VIEWS = ['Income vs Expense', 'Income', 'Expense'] as const;
 
 type ViewType = (typeof VIEWS)[number];
+
+const PERIOD_TO_FILTER: Record<AnalyticsPeriod, PeriodFilterId> = {
+  Weekly: 'week',
+  Monthly: 'month',
+  Yearly: 'year',
+};
+
+const FILTER_TO_PERIOD: Partial<
+  Record<PeriodFilterId, AnalyticsPeriod>
+> = {
+  week: 'Weekly',
+  month: 'Monthly',
+  year: 'Yearly',
+};
 
 const VIEW_COLORS = {
   'Income vs Expense': {
@@ -46,60 +69,13 @@ const VIEW_COLORS = {
     text: Color.red[700],
     background: [Color.red[50], '#FFFFFF', '#FFFFFF'],
   },
-  // 'Category Spending': {
-  //   primary: Color.purple[500],
-  //   light: Color.purple[50],
-  //   text: Color.purple[700],
-  //   background: [Color.purple[50], '#FFFFFF', '#FFFFFF'],
-  // },
 } as const;
-
-type MetricTheme = {
-  primary: string;
-  secondary: string;
-  light: string;
-  lighter: string;
-  text: string;
-};
-
-const METRIC_COLORS: Record<'income' | 'expense' | 'both', MetricTheme> = {
-  income: {
-    primary: Color.green[500],
-    secondary: Color.green[300],
-    light: Color.green[100],
-    lighter: Color.green[50],
-    text: Color.green[700],
-  },
-  expense: {
-    primary: Color.red[500],
-    secondary: Color.red[300],
-    light: Color.red[100],
-    lighter: Color.red[50],
-    text: Color.red[700],
-  },
-  both: {
-    primary: Color.blue[600],
-    secondary: Color.blue[400],
-    light: Color.blue[100],
-    lighter: Color.blue[50],
-    text: Color.blue[700],
-  },
-};
-
 
 const CHART_TYPES_BY_VIEW: Record<ViewType, string[]> = {
   'Income vs Expense': ['Bar Chart', 'Line Chart', 'Pie Chart'],
   Income: ['Bar Chart', 'Line Chart', 'Pie Chart'],
   Expense: ['Bar Chart', 'Line Chart', 'Pie Chart'],
-  // 'Category Spending': ['Bar Chart', 'Pie Chart'],
 };
-
-// type Category = {
-//   name: string;
-//   short: string;
-//   amount: number;
-//   color: string;
-// };
 
 const compact = (value: number) =>
   value >= 1000 ? `${+(value / 1000).toFixed(1)}k` : String(value);
@@ -110,18 +86,21 @@ export default function AnalyticsScreen() {
 
   const [view, setView] = useState<ViewType>('Income vs Expense');
   const [viewPickerOpen, setViewPickerOpen] = useState(false);
-  const [period, setPeriod] = useState<AnalyticsPeriod>('Monthly');
+  const [filter, setFilter] = useState<PeriodFilterId>('month');
+  const [range, setRange] = useState<DateRange>(
+    periodBounds('Monthly')
+  );
+  const [selectedPeriod, setSelectedPeriod] = useState<AnalyticsPeriod>('Monthly');
   const [chartType, setChartType] = useState('Bar Chart');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const theme = VIEW_COLORS[view];
-  const data = useAnalytics(period);
+  const data = useAnalytics(range, FILTER_TO_PERIOD[filter]);
 
   useEffect(() => {
     setSelectedIndex(null);
-  }, [view, period, chartType]);
+  }, [view, range, chartType]);
 
-  // const isCategoryView = view === 'Category Spending';
   const isIncomeOnly = view === 'Income';
   const isExpenseOnly = view === 'Expense';
 
@@ -143,19 +122,24 @@ export default function AnalyticsScreen() {
     [data, isIncomeOnly, isExpenseOnly]
   );
 
+  function handlePeriodChange(nextPeriod: AnalyticsPeriod) {
+    setSelectedPeriod(nextPeriod);
+    setFilter(PERIOD_TO_FILTER[nextPeriod]);
+    setRange(periodBounds(nextPeriod));
+  }
+
+  function handleFilterChange(nextFilter: PeriodFilterId) {
+    setFilter(nextFilter);
+
+    const nextPeriod = FILTER_TO_PERIOD[nextFilter];
+    if (nextPeriod) {
+      setSelectedPeriod(nextPeriod);
+    }
+  }
+  
   const totals = data?.totals;
   const hasData =
     !!totals && (totals.incomeCents > 0 || totals.expenseCents > 0);
-
-  // const categories = useMemo(
-  //   () => [...CATEGORIES[period]].sort((a, b) => b.amount - a.amount),
-  //   [period]
-  // );
-
-  // const categoryTotal = categories.reduce(
-  //   (total, category) => total + category.amount,
-  //   0
-  // );
 
   const slices: Slice[] = isIncomeOnly
     ? [
@@ -217,30 +201,36 @@ export default function AnalyticsScreen() {
     }
   }
 
-  function renderBars() {
-    // if (isCategoryView) {
-    //   const spacing = Math.max(
-    //     8,
-    //     Math.floor(chartWidth / categories.length) - 28
-    //   );
-    //
-    //   return (
-    //     <BarChart
-    //       {...barCommon}
-    //       data={categories.map((category) => ({
-    //         value: category.amount,
-    //         label: category.short,
-    //         frontColor: category.color,
-    //       }))}
-    //       barWidth={50}
-    //       spacing={spacing}
-    //       showGradient
-    //       gradientColor={gradientColor}
-    //     />
-    //   );
-    // }
+  function getChartScale(values: number[]) {
+    const maxValue = Math.max(...values, 0);
 
-    const barWidth = 50
+    if (maxValue <= 0) {
+      return {
+        maxValue: 100,
+        stepValue: 25,
+        noOfSections: 4,
+      };
+    }
+
+    const targetSteps = 4;
+    const rawStep = maxValue / targetSteps;
+    const magnitude = Math.pow(
+      10,
+      Math.floor(Math.log10(rawStep))
+    );
+
+    const stepValue =
+      Math.ceil(rawStep / magnitude) * magnitude;
+
+    return {
+      stepValue,
+      noOfSections: targetSteps,
+      maxValue: stepValue * targetSteps,
+    };
+  }
+
+  function renderBars() {
+    const barWidth = 50;
 
     const incomeValues = isExpenseOnly
       ? []
@@ -274,7 +264,12 @@ export default function AnalyticsScreen() {
           value: point.expense,
           frontColor: METRIC_COLORS.expense.light,
           gradientColor: METRIC_COLORS.expense.primary,
-          ...(isExpenseOnly ? { label: point.label, labelWidth: 40 } : {}),
+          ...(isExpenseOnly
+            ? {
+                label: point.label,
+                labelWidth: 40,
+              }
+            : {}),
           spacing: isIncomeOnly ? 15 : 25,
         });
       }
@@ -288,7 +283,6 @@ export default function AnalyticsScreen() {
         data={chartData}
         barWidth={barWidth}
         showGradient
-
         maxValue={maxValue}
         stepValue={stepValue}
         noOfSections={noOfSections}
@@ -296,32 +290,13 @@ export default function AnalyticsScreen() {
     );
   }
 
-  // Calculates the scale of the charts based on available values
-  function getChartScale(values: number[]) {
-    const maxValue = Math.max(...values, 0);
-
-    if (maxValue <= 0) {
-      return { maxValue: 100, stepValue: 25, noOfSections: 4 };
-    }
-
-    const targetSteps = 4;
-    const rawStep = maxValue / targetSteps;
-
-    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-    const stepValue = Math.ceil(rawStep / magnitude) * magnitude;
-
-    return {
-      stepValue,
-      noOfSections: targetSteps,
-      maxValue: stepValue * targetSteps,
-    };
-  }
-
   function renderLines() {
     const points = trend.length;
     const edge = 12;
     const spacing =
-      points > 1 ? (chartWidth - edge * 2) / (points - 1) : 0;
+      points > 1
+        ? (chartWidth - edge * 2) / (points - 1)
+        : 0;
 
     const incomeData = trend.map((point) => ({
       value: point.income,
@@ -337,12 +312,12 @@ export default function AnalyticsScreen() {
 
     const visibleValues = isExpenseOnly
       ? expenseData.map((item) => item.value)
-      : isIncomeOnly ?
-        incomeData.map((item) => item.value)
-      : [
-          ...incomeData.map((item) => item.value),
-          ...expenseData.map((item) => item.value),
-      ];
+      : isIncomeOnly
+        ? incomeData.map((item) => item.value)
+        : [
+            ...incomeData.map((item) => item.value),
+            ...expenseData.map((item) => item.value),
+          ];
 
     const { maxValue, stepValue, noOfSections } =
       getChartScale(visibleValues);
@@ -351,6 +326,7 @@ export default function AnalyticsScreen() {
       <LineChart
         data={isExpenseOnly ? expenseData : incomeData}
         {...(isCombinedView ? { data2: expenseData } : {})}
+
         color1={
           isExpenseOnly
             ? METRIC_COLORS.expense.primary
@@ -361,6 +337,7 @@ export default function AnalyticsScreen() {
             ? METRIC_COLORS.expense.primary
             : METRIC_COLORS.income.primary
         }
+
         dataPointsColor1={
           isExpenseOnly
             ? METRIC_COLORS.expense.primary
@@ -371,14 +348,17 @@ export default function AnalyticsScreen() {
             ? METRIC_COLORS.expense.primary
             : METRIC_COLORS.income.primary
         }
+
         dataPointsRadius={points > 8 ? 2 : 4}
+        thickness={2.5}
         width={chartWidth}
         height={180}
+
         curved
         curvature={0.1}
         curveType={CurveType.QUADRATIC}
         areaChart
-        // isCombined == true
+
         startFillColor={
           isExpenseOnly
             ? METRIC_COLORS.expense.primary
@@ -392,15 +372,14 @@ export default function AnalyticsScreen() {
         startOpacity={0.28}
         endOpacity={0.02}
 
-        // For combined view
         {...(isCombinedView
-        ? {
-            startFillColor2: METRIC_COLORS.expense.primary,
-            endFillColor2: METRIC_COLORS.expense.light,
-            startOpacity2: 0.28,
-            endOpacity2: 0.02,
-          }
-        : {})}
+          ? {
+              startFillColor2: METRIC_COLORS.expense.primary,
+              endFillColor2: METRIC_COLORS.expense.light,
+              startOpacity2: 0.28,
+              endOpacity2: 0.02,
+            }
+          : {})}
 
         noOfSections={noOfSections}
         spacing={spacing}
@@ -431,7 +410,9 @@ export default function AnalyticsScreen() {
 
           pointerLabelComponent: (items: any[]) => {
             const incomeItem = items[0];
-            const expenseItem = isCombinedView ? items[1] : null;
+            const expenseItem = isCombinedView
+              ? items[1]
+              : null;
 
             return (
               <View style={styles.pointerCard}>
@@ -451,7 +432,8 @@ export default function AnalyticsScreen() {
                       ]}
                     />
                     <Text style={styles.pointerText}>
-                      Income: {formatKsh(incomeItem?.value ?? 0)}
+                      Income:{' '}
+                      {formatKsh(incomeItem?.value ?? 0)}
                     </Text>
                   </View>
                 )}
@@ -492,8 +474,10 @@ export default function AnalyticsScreen() {
   const summaryItems: SummaryItem[] = useMemo(() => {
     const income = formatKsh(totals?.incomeCents ?? 0);
     const expense = formatKsh(totals?.expenseCents ?? 0);
+
     const netFlowCents =
-      (totals?.incomeCents ?? 0) - (totals?.expenseCents ?? 0);
+      (totals?.incomeCents ?? 0) -
+      (totals?.expenseCents ?? 0);
 
     const netFlow = formatKsh(Math.abs(netFlowCents));
     const netFlowColor =
@@ -502,18 +486,33 @@ export default function AnalyticsScreen() {
         : METRIC_COLORS.expense.primary;
 
     const netFlowTrend =
-      netFlowCents > 0 ? 'up' : netFlowCents < 0 ? 'down' : 'neutral';
+      netFlowCents > 0
+        ? 'up'
+        : netFlowCents < 0
+          ? 'down'
+          : 'neutral';
 
-    const transactionCount = data?.totals?.transactionCount;
+    const transactionCount =
+      data?.totals?.transactionCount;
     const highestExpense = data?.totals?.highestExpenseCents;
     const highestSender = data?.totals?.highestSender;
     const highestReceiver = data?.totals?.highestReceiver;
+    const highestSenderName = highestSender
+      ? normalizedMerchant(highestSender.name)
+      : '—';
+
+    const highestReceiverName = highestReceiver
+      ? normalizedMerchant(highestReceiver.name)
+      : '—';
+
     const smallCosts = data?.totals?.smallCostsCents;
-    const incomeGrowth = data?.totals?.incomeGrowthPercent;
-    const expenseGrowth = data?.totals?.expenseGrowthPercent;
+    const incomeGrowth =
+      data?.totals?.incomeGrowthPercent;
+    const expenseGrowth =
+      data?.totals?.expenseGrowthPercent;
 
     if (isIncomeOnly) {
-      if (period === 'Weekly') {
+      if (filter === 'week') {
         return [
           {
             label: 'Total income received',
@@ -539,15 +538,20 @@ export default function AnalyticsScreen() {
         {
           label: 'Total transactions',
           value:
-            transactionCount === undefined ? '—' : String(transactionCount),
+            transactionCount === undefined
+              ? '—'
+              : String(transactionCount),
         },
         {
           label: 'Top income source',
-          value: highestSender ?? '—',
+          value: highestSenderName,
+          ...(highestSender
+            ? { amount: formatKsh(highestSender.amountCents) }
+            : {}),
         },
         {
           label:
-            period === 'Yearly'
+            filter === 'year'
               ? 'Income growth vs last year'
               : 'Income growth vs last month',
           value:
@@ -577,7 +581,7 @@ export default function AnalyticsScreen() {
     }
 
     if (isExpenseOnly) {
-      if (period === 'Weekly') {
+      if (filter === 'week') {
         return [
           {
             label: 'Total expenses',
@@ -594,8 +598,18 @@ export default function AnalyticsScreen() {
           {
             label: 'Small costs under KSh 100',
             value:
-              smallCosts === undefined ? '—' : formatKsh(smallCosts),
+              smallCosts === undefined
+                ? '—'
+                : formatKsh(smallCosts),
             color: METRIC_COLORS.expense.primary,
+          },
+          {
+            label: 'Highest expenditure',
+            value: 
+              highestExpense === undefined
+              ? '—'
+              : formatKsh(highestExpense),
+            color: METRIC_COLORS.expense.primary
           },
         ];
       }
@@ -609,15 +623,28 @@ export default function AnalyticsScreen() {
         {
           label: 'Total transactions',
           value:
-            transactionCount === undefined ? '—' : String(transactionCount),
+            transactionCount === undefined
+              ? '—'
+              : String(transactionCount),
         },
         {
           label: 'Top spending recipient',
-          value: highestReceiver ?? '—',
+          value: highestReceiverName,
+          ...(highestReceiver
+            ? { amount: formatKsh(highestReceiver.amountCents) }
+            : {}),
+        },
+        {
+          label: 'Highest expenditure',
+          value: 
+            highestExpense === undefined
+            ? '—'
+            : formatKsh(highestExpense),
+          color: METRIC_COLORS.expense.primary
         },
         {
           label:
-            period === 'Yearly'
+            filter === 'year'
               ? 'Expense growth vs last year'
               : 'Expense growth vs last month',
           value:
@@ -660,7 +687,9 @@ export default function AnalyticsScreen() {
       {
         label: 'Total transactions',
         value:
-          transactionCount === undefined ? '—' : String(transactionCount),
+          transactionCount === undefined
+            ? '—'
+            : String(transactionCount),
       },
       {
         label: 'Net cash flow',
@@ -671,15 +700,21 @@ export default function AnalyticsScreen() {
       },
     ];
 
-    if (period === 'Monthly' || period === 'Yearly') {
+    if (filter === 'month' || filter === 'year') {
       items.push({
         label: 'Top income source',
-        value: highestSender ?? '—',
+        value: highestSenderName,
+        ...(highestSender
+          ? { amount: formatKsh(highestSender.amountCents) }
+          : {}),
       });
 
       items.push({
         label: 'Top spending recipient',
-        value: highestReceiver ?? '—',
+        value: highestReceiverName,
+        ...(highestReceiver
+          ? { amount: formatKsh(highestReceiver.amountCents) }
+          : {}),
       });
     }
 
@@ -687,11 +722,10 @@ export default function AnalyticsScreen() {
   }, [
     data,
     totals,
-    period,
+    filter,
     isIncomeOnly,
     isExpenseOnly,
   ]);
-        
 
   return (
     <LinearGradient
@@ -710,7 +744,11 @@ export default function AnalyticsScreen() {
               }
             }}
           >
-            <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
+            <Ionicons
+              name="chevron-back"
+              size={22}
+              color="#1A1A1A"
+            />
           </TouchableOpacity>
 
           <Text variant="heading" style={styles.title}>
@@ -723,13 +761,23 @@ export default function AnalyticsScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.chartCard}>
             <View style={styles.chartControlsRow}>
-              <View style={{ position: 'relative', zIndex: 10 }}>
+              <View
+                style={{
+                  position: 'relative',
+                  zIndex: 10,
+                }}
+              >
                 <Pressable
-                  onPress={() => setViewPickerOpen((previous) => !previous)}
+                  onPress={() =>
+                    setViewPickerOpen((previous) => !previous)
+                  }
                   style={styles.viewPicker}
                 >
                   <Text
-                    style={[styles.viewTrigger, { color: theme.text }]}
+                    style={[
+                      styles.viewTrigger,
+                      { color: theme.text },
+                    ]}
                   >
                     {view}
                   </Text>
@@ -738,24 +786,31 @@ export default function AnalyticsScreen() {
                 {viewPickerOpen && (
                   <View style={styles.viewDropdown}>
                     {VIEWS.map((option) => {
-                      const optionTheme = VIEW_COLORS[option];
+                      const optionTheme =
+                        VIEW_COLORS[option];
                       const isSelected = view === option;
 
                       return (
                         <Pressable
                           key={option}
-                          onPress={() => handleViewChange(option)}
+                          onPress={() =>
+                            handleViewChange(option)
+                          }
                           style={[
                             styles.viewOption,
                             isSelected && {
-                              backgroundColor: optionTheme.light,
+                              backgroundColor:
+                                optionTheme.light,
                             },
                           ]}
                         >
                           <View
                             style={[
                               styles.optionDot,
-                              { backgroundColor: optionTheme.primary },
+                              {
+                                backgroundColor:
+                                  optionTheme.primary,
+                              },
                             ]}
                           />
 
@@ -775,7 +830,10 @@ export default function AnalyticsScreen() {
                             <View
                               style={[
                                 styles.checkmark,
-                                { backgroundColor: optionTheme.primary },
+                                {
+                                  backgroundColor:
+                                    optionTheme.primary,
+                                },
                               ]}
                             />
                           )}
@@ -790,10 +848,9 @@ export default function AnalyticsScreen() {
                 <DropdownPicker
                   label="Period"
                   options={ANALYTICS_PERIODS}
-                  selected={period}
-                  onSelect={(value) => setPeriod(value as AnalyticsPeriod)}
+                  selected={selectedPeriod}
+                  onSelect={(value) => handlePeriodChange(value as AnalyticsPeriod)}
                 />
-
                 <DropdownPicker
                   label="Chart Type"
                   options={CHART_TYPES_BY_VIEW[view]}
@@ -810,16 +867,24 @@ export default function AnalyticsScreen() {
                 </Text>
               ) : chartType === 'Pie Chart' ? (
                 <DonutChart
-                  key={`${view}-${period}`}
+                  key={`${view}-${range.from}-${range.to}-pie`}
                   slices={slices}
                   selectedIndex={selectedIndex}
                   onSelect={setSelectedIndex}
                   formatAmount={formatKsh}
                 />
               ) : chartType === 'Line Chart' ? (
-                <View key={`${view}-${period}-lines`}>{renderLines()}</View>
+                <View
+                  key={`${view}-${range.from}-${range.to}-lines`}
+                >
+                  {renderLines()}
+                </View>
               ) : (
-                <View key={`${view}-${period}-bars`}>{renderBars()}</View>
+                <View
+                  key={`${view}-${range.from}-${range.to}-bars`}
+                >
+                  {renderBars()}
+                </View>
               )}
             </View>
 
@@ -829,10 +894,15 @@ export default function AnalyticsScreen() {
                   <View
                     style={[
                       styles.legendDot,
-                      { backgroundColor: METRIC_COLORS.income.primary },
+                      {
+                        backgroundColor:
+                          METRIC_COLORS.income.primary,
+                      },
                     ]}
                   />
-                  <Text style={styles.legendText}>Income</Text>
+                  <Text style={styles.legendText}>
+                    Income
+                  </Text>
                 </View>
               )}
 
@@ -841,38 +911,46 @@ export default function AnalyticsScreen() {
                   <View
                     style={[
                       styles.legendDot,
-                      { backgroundColor: METRIC_COLORS.expense.primary },
+                      {
+                        backgroundColor:
+                          METRIC_COLORS.expense.primary,
+                      },
                     ]}
                   />
-                  <Text style={styles.legendText}>Expense</Text>
+                  <Text style={styles.legendText}>
+                    Expense
+                  </Text>
                 </View>
               )}
             </View>
-          </View>
 
-          {/* {isCategoryView ? (
-            <Animated.View key="list" entering={FadeInDown.duration(250)}>
-              <CategoryList
-                items={categories.map((category) => ({
-                  name: category.name,
-                  amount: category.amount,
-                  color: category.color,
-                }))}
-                total={categoryTotal}
-                selectedIndex={
-                  chartType === 'Pie Chart' ? selectedIndex : null
-                }
-                formatAmount={formatKsh}
-              />
-            </Animated.View>
-          ) : ( */}
+            {/* <View style={styles.analyticsFilterWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.analyticsFilters}
+              >
+                <PeriodFilters
+                  selectedFilter={filter}
+                  onRangeChange={setRange}
+                  onFilterChange={handleFilterChange}
+                  hiddenFilters={['today']}
+
+                  activeBackgroundColor={theme.primary}
+                  activeTextColor="#FFFFFF"
+                  inactiveBackgroundColor={theme.light}
+                  inactiveTextColor={theme.text}
+                />
+              </ScrollView>
+            </View> */}
+          </View>          
+
           <Animated.View
-            key={`${view}-${period}-summary`}
+            key={`${view}-${range.from}-${range.to}-summary`}
             entering={FadeInDown.duration(250)}
           >
             <SummaryGrid items={summaryItems} />
           </Animated.View>
-          {/* )} */}
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -895,10 +973,9 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
   },
   scroll: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
   },
-
   pointerCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
@@ -934,20 +1011,21 @@ const styles = StyleSheet.create({
     color: '#444444',
   },
   chartCard: {
+    // backgroundColor: 'red',
     borderRadius: 20,
-    padding: 16,
-    marginBottom: 20,
+    paddingVertical: 16,
+    // marginBottom: 20,
     minHeight: 370,
-    // width: '105%',
-    alignSelf: 'center',
+    gap: 15
+    // alignSelf: 'center',
   },
   chartControlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    // gap: 12,
     marginBottom: 16,
-    paddingVertical: 5,
+    // paddingVertical: 5,
   },
   chartArea: {
     flex: 1,
@@ -958,7 +1036,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 18,
-    marginTop: 12,
+    marginHorizontal: 12,
+    paddingBottom: 20
   },
   legendItem: {
     flexDirection: 'row',
@@ -973,15 +1052,6 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     color: '#555555',
-  },
-  grid: {
-    gap: 12,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: 5,
-    width: '105%',
-    alignSelf: 'center',
   },
   viewPicker: {
     flexDirection: 'row',
@@ -1042,41 +1112,24 @@ const styles = StyleSheet.create({
     gap: 12,
     flexShrink: 1,
   },
-  receivedLabel: {
-    color: '#05092E',
+  analyticsFilterWrapper: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 55,
+    paddingVertical: 8,
+    marginBottom: 20,
+    paddingHorizontal: 12,
+    gap: 4,
+    overflow: 'hidden',
+    width: 355,
+    height: 55,
+    alignSelf: 'center'
   },
-  receivedValue: {
-    color: '#05092E',
-    fontWeight: '800',
-  },
-  spentLabel: {
-    color: '#482001',
-  },
-  spentValue: {
-    color: '#482001',
-    fontWeight: '800',
-  },
-  budgetLabel: {
-    color: '#043404',
-  },
-  budgetValue: {
-    color: '#043404',
-    fontWeight: '800',
-    marginTop: 18,
-  },
-  budgetProgressFill: {
-    backgroundColor: '#1B6E3C',
-  },
-  goalsLabel: {
-    color: '#0E0215',
-  },
-  goalsValue: {
-    color: '#20062E',
-    fontWeight: '800',
-    marginTop: 18,
-  },
-  goalsProgressFill: {
-    backgroundColor: '#6A1B9A',
+  analyticsFilters: {
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 5
   },
   empty: {
     textAlign: 'center',

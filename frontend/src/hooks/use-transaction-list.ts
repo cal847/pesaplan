@@ -1,41 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getDb } from '@/lib/db/database';
-import { listTransactions, StoredTransaction } from '@/lib/db/transactions';
-import { periodBounds } from '@/lib/period';
-import { toLocalStamp } from '@/lib/time';
+import {
+  listTransactions,
+  type StoredTransaction,
+} from '@/lib/db/transactions';
 import { useDataStore } from '@/stores/data-store';
 
 type PageCursor = {
-    occurredAt: string;
-    createdAt: number;
-    id: string
+  occurredAt: string;
+  createdAt: number;
+  id: string;
 };
 
-const PAGE =30;
+const PAGE = 30;
 
-export type RangeFilter =
-  | { kind: 'all' | 'today' | 'month' | 'year' }
-  | { kind: 'custom'; from: Date; to: Date };
+export type TransactionDateRange = {
+  from?: string;
+  to?: string;
+};
 
-function resolveBounds(range: RangeFilter): { from?: string; to?: string } {
-  switch (range.kind) {
-    case 'all': return {};
-    case 'today': return periodBounds('Daily');
-    case 'month': return periodBounds('Monthly');
-    case 'year': return periodBounds('Yearly');
-    case 'custom': {
-      const from = new Date(range.from.getFullYear(), range.from.getMonth(), range.from.getDate());
-      const to = new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate() + 1);
-      return { from: toLocalStamp(from), to: toLocalStamp(to) };
-    }
-  }
-}
-
-export function useTransactionList(range: RangeFilter, search: string, simKey: string | null) {
+export function useTransactionList(
+  range: TransactionDateRange,
+  search: string,
+  simKey: string | null
+) {
   const dataVersion = useDataStore((s) => s.version);
+
   const [rows, setRows] = useState<StoredTransaction[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status, setStatus] = useState<
+    'loading' | 'ready' | 'error'
+  >('loading');
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -44,12 +39,20 @@ export function useTransactionList(range: RangeFilter, search: string, simKey: s
   const exhausted = useRef(false);
   const busy = useRef(false);
   const latest = useRef({ range, search, simKey });
+
   latest.current = { range, search, simKey };
 
   const load = useCallback(async (reset: boolean) => {
-    if (!reset && (busy.current || exhausted.current)) return;
-    const gen = reset ? ++generation.current : generation.current;
+    if (!reset && (busy.current || exhausted.current)) {
+      return;
+    }
+
+    const generationForRequest = reset
+      ? ++generation.current
+      : generation.current;
+
     busy.current = true;
+
     if (reset) {
       cursor.current = null;
       exhausted.current = false;
@@ -59,28 +62,45 @@ export function useTransactionList(range: RangeFilter, search: string, simKey: s
     }
 
     try {
-      const { range, search, simKey } = latest.current;
+      const { range: currentRange, search: currentSearch, simKey: currentSimKey } =
+        latest.current;
+
       const page = await listTransactions(await getDb(), {
-        ...resolveBounds(range),
-        search: search || undefined,
-        simKey,
-        // after: cursor.current,
+        from: currentRange.from,
+        to: currentRange.to,
+        search: currentSearch || undefined,
+        simKey: currentSimKey,
         limit: PAGE,
       });
-      if (gen !== generation.current) return; // a newer query took over
+
+      if (generationForRequest !== generation.current) {
+        return;
+      }
 
       const last = page[page.length - 1];
-      if (last) cursor.current = { occurredAt: last.occurredAt, createdAt: last.createdAt, id: last.id };
+
+      if (last) {
+        cursor.current = {
+          occurredAt: last.occurredAt,
+          createdAt: last.createdAt,
+          id: last.id,
+        };
+      }
+
       exhausted.current = page.length < PAGE;
-      setRows((prev) => (reset ? page : [...prev, ...page]));
+
+      setRows((previous) =>
+        reset ? page : [...previous, ...page]
+      );
+
       setStatus('ready');
     } catch (error) {
-      if (gen === generation.current) {
+      if (generationForRequest === generation.current) {
         console.warn('transactions load failed', error);
         setStatus('error');
       }
     } finally {
-      if (gen === generation.current) {
+      if (generationForRequest === generation.current) {
         busy.current = false;
         setRefreshing(false);
         setLoadingMore(false);
@@ -88,8 +108,7 @@ export function useTransactionList(range: RangeFilter, search: string, simKey: s
     }
   }, []);
 
-  const rangeKey =
-    range.kind === 'custom' ? `c${range.from.getTime()}-${range.to.getTime()}` : range.kind;
+  const rangeKey = `${range.from ?? ''}|${range.to ?? ''}`;
 
   useEffect(() => {
     void load(true);
@@ -109,9 +128,12 @@ export function useTransactionList(range: RangeFilter, search: string, simKey: s
 
 export function useDebounced<T>(value: T, ms = 250): T {
   const [debounced, setDebounced] = useState(value);
+
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), ms);
-    return () => clearTimeout(t);
+    const timeout = setTimeout(() => setDebounced(value), ms);
+
+    return () => clearTimeout(timeout);
   }, [value, ms]);
+
   return debounced;
 }

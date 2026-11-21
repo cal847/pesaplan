@@ -28,15 +28,31 @@ export type Totals = {
   savingsCents: number
 };
 
+export type TopMerchant = {
+  name: string;
+  amountCents: number;
+};
+
 export type AnalyticsTotals = Totals & {
   transactionCount: number;
   highestExpenseCents: number;
-  highestSender: string | null;
-  highestReceiver: string | null;
+  highestSender: TopMerchant | null;
+  highestReceiver: TopMerchant | null;
   smallCostsCents: number;
   incomeGrowthPercent: number | null;
   expenseGrowthPercent: number | null;
 };
+
+export function normalizedMerchant(merchant: string | null | undefined): string | null {
+  const normalized = merchant?.trim().replace(/\s+/g, ' ').toLowerCase();
+  
+  if (!normalized) return null;
+  
+  return normalized
+    .split(' ')
+    .map((name) => name.charAt(0).toUpperCase() + name.slice(1))
+    .join(' ');
+}
 
 // snake_case in the database, camelCase in the app
 const COLUMNS = `id, code, type, amount_cents AS amountCents, fee_cents AS feeCents,
@@ -53,6 +69,7 @@ const INSERT = `
   ON CONFLICT(code, type) DO NOTHING`;
 
 type NewTransaction = Omit<StoredTransaction, 'id' | 'createdAt'>;
+
 
 /** Returns the new id, or null when the code already exists. */
 async function insert(db: Db, tx: NewTransaction): Promise<string | null> {
@@ -72,8 +89,11 @@ async function insert(db: Db, tx: NewTransaction): Promise<string | null> {
     }
   }
   const id = Crypto.randomUUID();
+
+  const merchant = normalizedMerchant(tx.merchant);
+
   const result = await db.runAsync(INSERT, [
-    id, tx.code, tx.type, tx.amountCents, tx.feeCents, tx.merchant,
+    id, tx.code, tx.type, tx.amountCents, tx.feeCents, merchant,
     tx.accountNumber, tx.categoryId, tx.occurredAt, tx.source, Date.now(), tx.simKey
   ]);
   return result.changes === 1 ? id : null;
@@ -262,13 +282,26 @@ export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: str
   );
 }
 
+type AnalyticsTotalsRow = {
+  incomeCents: number;
+  expenseCents: number;
+  savingsCents: number;
+  transactionCount: number;
+  highestExpenseCents: number;
+  highestSenderName: string | null;
+  highestSenderAmountCents: number | null;
+  highestReceiverName: string | null;
+  highestReceiverAmountCents: number | null;
+  smallCostsCents: number;
+};
+
 export async function analyticsTotalsBetween(
   db: Db,
   from: string,
   to: string,
   simKey: string | null = null
 ): Promise<AnalyticsTotals> {
-  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?'];
+  const filters = ['occurred_at >= ?', 'occurred_at < ?'];
   const params: (string | number)[] = [from, to];
 
   if (simKey !== null) {
@@ -276,73 +309,97 @@ export async function analyticsTotalsBetween(
     params.push(simKey);
   }
 
-  const where = filters.join(' AND ');
-
-  const [totals, details] = await Promise.all([
-    totalsBetween(db, from, to, simKey),
-
-    db.getFirstAsync<{
-      transactionCount: number;
-      highestExpenseCents: number;
-      highestSender: string | null;
-      highestReceiver: string | null;
-      smallCostsCents: number;
-    }>(
-      `WITH filtered AS (
-        SELECT type, amount_cents, merchant
-        FROM transactions
-        WHERE ${where}
-      )
-      SELECT
-        COUNT(*) AS transactionCount,
-
-        COALESCE(
-          MAX(CASE WHEN type = 'expense' THEN amount_cents END),
-          0
-        ) AS highestExpenseCents,
-
-        (
-          SELECT merchant
-          FROM filtered
-          WHERE type = 'income'
-            AND merchant IS NOT NULL
-            AND TRIM(merchant) <> ''
-          GROUP BY merchant
-          ORDER BY SUM(amount_cents) DESC
-          LIMIT 1
-        ) AS highestSender,
-
-        (
-          SELECT merchant
-          FROM filtered
-          WHERE type = 'expense'
-            AND merchant IS NOT NULL
-            AND TRIM(merchant) <> ''
-          GROUP BY merchant
-          ORDER BY SUM(amount_cents) DESC
-          LIMIT 1
-        ) AS highestReceiver,
-
-        COALESCE(
-          SUM(CASE
-            WHEN type = 'expense' AND amount_cents < 10000 THEN amount_cents
-            ELSE 0
-          END),
-          0
-        ) AS smallCostsCents
-      FROM filtered`,
-      params
-    ),
-  ]);
+  const row = await db.getFirstAsync<AnalyticsTotalsRow>(
+    `WITH filtered AS (
+       SELECT type, amount_cents, merchant
+       FROM transactions
+       WHERE ${filters.join(' AND ')}
+     ),
+     summary AS (
+       SELECT
+         COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0)
+           AS incomeCents,
+         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0)
+           AS expenseCents,
+         COALESCE(SUM(CASE WHEN type = 'savings' THEN amount_cents ELSE 0 END), 0)
+           AS savingsCents,
+         COUNT(*) AS transactionCount,
+         COALESCE(MAX(CASE WHEN type = 'expense' THEN amount_cents END), 0)
+           AS highestExpenseCents,
+         COALESCE(SUM(CASE
+           WHEN type = 'expense' AND amount_cents < 10000 THEN amount_cents
+           ELSE 0
+         END), 0) AS smallCostsCents
+       FROM filtered
+     ),
+     sender_totals AS (
+       SELECT
+         MIN(TRIM(merchant)) AS name,
+         SUM(amount_cents) AS amountCents
+       FROM filtered
+       WHERE type = 'income'
+         AND merchant IS NOT NULL
+         AND TRIM(merchant) <> ''
+       GROUP BY LOWER(TRIM(merchant))
+     ),
+     receiver_totals AS (
+       SELECT
+         MIN(TRIM(merchant)) AS name,
+         SUM(amount_cents) AS amountCents
+       FROM filtered
+       WHERE type = 'expense'
+         AND merchant IS NOT NULL
+         AND TRIM(merchant) <> ''
+       GROUP BY LOWER(TRIM(merchant))
+     ),
+     top_sender AS (
+       SELECT name, amountCents
+       FROM sender_totals
+       ORDER BY amountCents DESC, name ASC
+       LIMIT 1
+     ),
+     top_receiver AS (
+       SELECT name, amountCents
+       FROM receiver_totals
+       ORDER BY amountCents DESC, name ASC
+       LIMIT 1
+     )
+     SELECT
+       summary.*,
+       top_sender.name AS highestSenderName,
+       top_sender.amountCents AS highestSenderAmountCents,
+       top_receiver.name AS highestReceiverName,
+       top_receiver.amountCents AS highestReceiverAmountCents
+     FROM summary
+     LEFT JOIN top_sender ON 1 = 1
+     LEFT JOIN top_receiver ON 1 = 1`,
+    params
+  );
 
   return {
-    ...totals,
-    transactionCount: details?.transactionCount ?? 0,
-    highestExpenseCents: details?.highestExpenseCents ?? 0,
-    highestSender: details?.highestSender ?? null,
-    highestReceiver: details?.highestReceiver ?? null,
-    smallCostsCents: details?.smallCostsCents ?? 0,
-    incomeGrowthPercent: null, 
+    incomeCents: row?.incomeCents ?? 0,
+    expenseCents: row?.expenseCents ?? 0,
+    savingsCents: row?.savingsCents ?? 0,
+    transactionCount: row?.transactionCount ?? 0,
+    highestExpenseCents: row?.highestExpenseCents ?? 0,
+    highestSender:
+      row?.highestSenderName != null &&
+      row.highestSenderAmountCents != null
+        ? {
+            name: row.highestSenderName,
+            amountCents: row.highestSenderAmountCents,
+          }
+        : null,
+    highestReceiver:
+      row?.highestReceiverName != null &&
+      row.highestReceiverAmountCents != null
+        ? {
+            name: row.highestReceiverName,
+            amountCents: row.highestReceiverAmountCents,
+          }
+        : null,
+    smallCostsCents: row?.smallCostsCents ?? 0,
+    incomeGrowthPercent: null,
     expenseGrowthPercent: null,
   };
 }
