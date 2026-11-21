@@ -18,6 +18,7 @@ export type StoredTransaction = {
   occurredAt: string;
   source: 'sms' | 'manual';
   createdAt: number;
+  simKey: string; // '' when the SIM isn't known
 };
 
 export type Totals = { incomeCents: number; expenseCents: number; savingsCents: number };
@@ -25,16 +26,16 @@ export type Totals = { incomeCents: number; expenseCents: number; savingsCents: 
 // snake_case in the database, camelCase in the app
 const COLUMNS = `id, code, type, amount_cents AS amountCents, fee_cents AS feeCents,
   merchant, account_number AS accountNumber, category_id AS categoryId,
-  occurred_at AS occurredAt, source, created_at AS createdAt`;
+  occurred_at AS occurredAt, source, created_at AS createdAt, sim_key AS simKey`;
 
 // ON CONFLICT(code) only skips a repeated M-Pesa code. "INSERT OR IGNORE" would
 // also silently swallow bad data (a zero amount), and report it as a duplicate.
 const INSERT = `
   INSERT INTO transactions
     (id, code, type, amount_cents, fee_cents, merchant, account_number,
-     category_id, occurred_at, source, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  ON CONFLICT(code) DO NOTHING`;
+     category_id, occurred_at, source, created_at, sim_key)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(code, sim_key) DO NOTHING`;
 
 type NewTransaction = Omit<StoredTransaction, 'id' | 'createdAt'>;
 
@@ -43,7 +44,7 @@ async function insert(db: Db, tx: NewTransaction): Promise<string | null> {
   const id = Crypto.randomUUID();
   const result = await db.runAsync(INSERT, [
     id, tx.code, tx.type, tx.amountCents, tx.feeCents, tx.merchant,
-    tx.accountNumber, tx.categoryId, tx.occurredAt, tx.source, Date.now(),
+    tx.accountNumber, tx.categoryId, tx.occurredAt, tx.source, Date.now(), tx.simKey
   ]);
   return result.changes === 1 ? id : null;
 }
@@ -51,6 +52,7 @@ async function insert(db: Db, tx: NewTransaction): Promise<string | null> {
 export async function saveParsed(db: Db, parsed: ParsedTransaction): Promise<'saved' | 'duplicate'> {
   const id = await insert(db, {
     code: parsed.code,
+    simKey: parsed.simKey ?? 'unknown',
     type: parsed.type,
     amountCents: parsed.amountCents,
     feeCents: parsed.feeCents,
@@ -82,6 +84,7 @@ export type ManualInput = {
   merchant?: string | null;
   categoryId?: string | null;
   occurredAt?: string;
+  simKey?: string;
 };
 
 export async function addManual(db: Db, input: ManualInput): Promise<string> {
@@ -98,52 +101,73 @@ export async function addManual(db: Db, input: ManualInput): Promise<string> {
     categoryId: input.categoryId ?? null,
     occurredAt: input.occurredAt ?? toLocalStamp(Date()),
     source: 'manual',
+    simKey: input.simKey ?? 'unknown',
   });
   return id!; // a null code can never conflict, so this always inserts
 }
 
 export function listTransactions(
   db: Db,
-  { limit = 20, offset = 0, type }: { limit?: number; offset?: number; type?: TransactionType } = {}
+  { limit = 20, offset = 0, type, simKey }: { limit?: number; offset?: number; type?: TransactionType; simKey?: string } = {}
 ) {
+  const filters: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (type) {
+    filters.push('type = ?');
+    params.push(type);
+  }
+  if (simKey) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
   return db.getAllAsync<StoredTransaction>(
+    // If 'type' exists, use WHERE type=? AND sim_key=?
+    // If 'type' is missing, use WHERE sim_key=?
     `SELECT ${COLUMNS} FROM transactions
-     ${type ? 'WHERE type = ?' : ''}
+     ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
      ORDER BY occurred_at DESC, created_at DESC
      LIMIT ? OFFSET ?`,
-    type ? [type, limit, offset] : [limit, offset]
+    [...params, limit, offset]
   );
 }
 
 /** Totals. Expense amounts already include the M-Pesa fee. */
-export async function totalsBetween(db: Db, from: string, to: string): Promise<Totals> {
+export async function totalsBetween(db: Db, from: string, to: string, simKey: string): Promise<Totals> {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?', 'sim_key = ?'];
+  const params: (string | number)[] = [from, to];
+
+  if (simKey !== undefined) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
   const row = await db.getFirstAsync<Totals>(
     `SELECT
        COALESCE(SUM(CASE WHEN type = 'income'  THEN amount_cents END), 0) AS incomeCents,
        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents END), 0) AS expenseCents,
        COALESCE(SUM(CASE WHEN type = 'savings' THEN amount_cents END), 0) AS savingsCents
      FROM transactions
-     WHERE occurred_at >= ? AND occurred_at < ?`,
-    [from, to]
+     WHERE ${filters.join(' AND ')}`,
+    params
   );
   return row ?? { incomeCents: 0, expenseCents: 0, savingsCents: 0 };
 }
 
 // Lists transactions between a given range
-export function listBetween(db: Db, from: string, to: string) {
+export function listBetween(db: Db, from: string, to: string, simKey: string) {
   return db.getAllAsync<StoredTransaction>(
     `SELECT ${COLUMNS} FROM transactions
-     WHERE occurred_at >= ? AND occurred_at < ?
+     WHERE occurred_at >= ? AND occurred_at < ? AND sim_key = ?
      ORDER BY occurred_at ASC, created_at ASC`,
-    [from, to]
+    [from, to, simKey]
   );
 }
 
 // Counts transactions between a given range
-export async function countBetween(db: Db, from: string, to: string): Promise<number> {
+export async function countBetween(db: Db, from: string, to: string, simKey: string): Promise<number> {
   const row = await db.getFirstAsync<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM transactions WHERE occurred_at >= ? AND occurred_at < ?`,
-    [from, to]
+    `SELECT COUNT(*) AS n FROM transactions WHERE occurred_at >= ? AND occurred_at < ? AND sim_key = ?`,
+    [from, to, simKey]
   );
   return row?.n ?? 0;
 }
@@ -151,15 +175,22 @@ export async function countBetween(db: Db, from: string, to: string): Promise<nu
 export type DailyTotals = { day: string; incomeCents: number; expenseCents: number };
 
 // Calculates income and expense per day.
-export function dailyTotalsBetween(db: Db, from: string, to: string) {
+export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: string) {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?', 'sim_key = ?'];
+  const params: (string | number)[] = [from, to];
+  if (simKey !== undefined) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
+
   return db.getAllAsync<DailyTotals>(
     `SELECT substr(occurred_at, 1, 10) AS day,
        COALESCE(SUM(CASE WHEN type = 'income'  THEN amount_cents END), 0) AS incomeCents,
        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents END), 0) AS expenseCents
      FROM transactions
-     WHERE occurred_at >= ? AND occurred_at < ?
+     WHERE ${filters.join(' AND ')}
      GROUP BY day
      ORDER BY day`,
-    [from, to]
+    params
   );
 }

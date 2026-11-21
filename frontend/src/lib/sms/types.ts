@@ -13,7 +13,11 @@ export type ParsedTransaction = {
   /** Paybill account number, when the message has one. */
   accountNumber: string | null;
   /** When it happened, as epoch milliseconds (UTC). */
-  occurredAt: number;
+  occurredAt: string;
+  /** The SIM key associated with the transaction. */
+  simKey: string;
+  /** The label of the SIM associated with the transaction. */
+  simLabel: string | null;
 };
 
 export type ParseFailureReason = 'missing_code' | 'missing_date' | 'unrecognised';

@@ -1,19 +1,18 @@
-// frontend/src/app/(tabs)/profile.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
 
+import { LockSettings } from '@/components/lock/lock-settings';
 import { BackupSection } from '@/components/profile/backup-section';
 import { DisclosureRow, ROW_GUTTER } from '@/components/profile/disclosure-row';
-import { DropdownPicker } from '@/components/shared/dropdown-picker';
-import { ThemePreference, useSettingsStore } from '@/stores/settings-store';
+import { DonateNumber } from '@/components/profile/donate-number';
 import { ExportModal } from '@/components/profile/export-modal';
 import { ImportPasteModal } from '@/components/profile/import-paste-modal';
-import { DonateNumber } from '@/components/profile/donate-number';
+import { DropdownPicker } from '@/components/shared/dropdown-picker';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PermissionId, pillLabel, tapAction } from '@/lib/permissions';
-import { LockSettings } from '@/components/lock/lock-settings';
+import { ThemePreference, useSettingsStore } from '@/stores/settings-store';
 
 const COLORS = {
   background: '#F0EFF5',
@@ -81,9 +80,24 @@ export default function ProfileScreen() {
 
   async function onPermissionPress(id: PermissionId) {
     const info = items?.find((p) => p.id === id);
-    if (!info) return;
-    if (tapAction(info) === 'request') await request(id);
-    else await Linking.openSettings();
+    console.log('[Profile permission] tapped', { id, info });
+
+    if (!info) {
+      console.log('[Profile permission] permission state is not loaded');
+      return;
+    }
+
+    const action = tapAction(info);
+    console.log('[Profile permission] action', action);
+
+    if (action === 'request') {
+      console.log('[Profile permission] calling request', id);
+      const result = await request(id);
+      console.log('[Profile permission] request returned', { id, result });
+    } else {
+      console.log('[Profile permission] opening app settings', id);
+      await Linking.openSettings();
+    }
   }
 
   return (

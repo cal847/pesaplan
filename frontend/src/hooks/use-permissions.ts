@@ -1,10 +1,9 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 // import * as Notifications from 'expo-notifications';
+import type { PermissionId, PermissionInfo } from '@/lib/permissions';
+import { ensurePermission, runSmsImport } from '@/lib/sms/auto-import';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, PermissionsAndroid, Platform } from 'react-native';
-
-import type { PermissionId, PermissionInfo } from '@/lib/permissions';
-
 
 const Notifications = Platform.OS === 'android' || Platform.OS === 'ios' ? require('expo-notifications') : null;
 
@@ -64,7 +63,19 @@ export function usePermissions() {
 
   const request = useCallback(
     async (id: PermissionId) => {
-      if (id === 'notifications') await Notifications?.requestPermissionsAsync();
+      // Trigger ensurePermission for SMS permission
+      if (id === 'sms') {
+        const result = await ensurePermission({ manualRetry: true });
+        await refresh();
+
+        if (result === PermissionsAndroid.RESULTS.GRANTED) {
+          await runSmsImport({ force: false });
+        }
+
+        return result;
+      } else if (id === 'notifications'){
+        await Notifications?.requestPermissionsAsync();
+      } else if (id === 'biometrics') {}
       await refresh();
     },
     [refresh]

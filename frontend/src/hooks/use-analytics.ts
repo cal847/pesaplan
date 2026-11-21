@@ -3,8 +3,9 @@ import { useCallback, useState } from 'react';
 
 import { AnalyticsPeriod, buildSeries, SeriesPoint } from '@/lib/analytics/series';
 import { getDb } from '@/lib/db/database';
-import { dailyTotalsBetween, totalsBetween, Totals } from '@/lib/db/transactions';
+import { dailyTotalsBetween, Totals, totalsBetween } from '@/lib/db/transactions';
 import { periodBounds } from '@/lib/period';
+import { useDataStore } from '@/stores/data-store';
 import { useSettingsStore } from '@/stores/settings-store';
 
 export type AnalyticsData = {
@@ -18,6 +19,7 @@ export function useAnalytics(period: AnalyticsPeriod): AnalyticsData | null {
   const spendingPeriod = useSettingsStore((s) => s.spendingPeriod);
   const limitCents = useSettingsStore((s) => s.spendingLimitCents);
   const [data, setData] = useState<AnalyticsData | null>(null);
+  const dataVersion = useDataStore((s) => s.version);
 
   useFocusEffect(
     useCallback(() => {
@@ -48,7 +50,7 @@ export function useAnalytics(period: AnalyticsPeriod): AnalyticsData | null {
       return () => {
         cancelled = true;
       };
-    }, [period, spendingPeriod, limitCents])
+    }, [period, spendingPeriod, limitCents, dataVersion])
   );
 
   return data;
