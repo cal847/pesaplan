@@ -299,3 +299,36 @@ export const Color = {
     950: "#4c0519",
   },
 };
+
+
+type MetricTheme = {
+  primary: string;
+  secondary: string;
+  light: string;
+  lighter: string;
+  text: string;
+};
+
+export const METRIC_COLORS: Record<'income' | 'expense' | 'both', MetricTheme> = {
+  income: {
+    primary: Color.green[500],
+    secondary: Color.green[300],
+    light: Color.green[100],
+    lighter: Color.green[50],
+    text: Color.green[700],
+  },
+  expense: {
+    primary: Color.red[500],
+    secondary: Color.red[300],
+    light: Color.red[100],
+    lighter: Color.red[50],
+    text: Color.red[700],
+  },
+  both: {
+    primary: Color.blue[600],
+    secondary: Color.blue[400],
+    light: Color.blue[100],
+    lighter: Color.blue[50],
+    text: Color.blue[700],
+  },
+};

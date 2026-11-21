@@ -545,9 +545,10 @@ export default function AnalyticsScreen() {
         {
           label: 'Top income source',
           value: highestSenderName,
-          ...(highestSender
-            ? { amount: formatKsh(highestSender.amountCents) }
-            : {}),
+          amount:  highestSender
+            ? formatKsh(highestSender.amountCents)
+            : '—',
+          amountColor: Color.lime[800]
         },
         {
           label:
@@ -628,13 +629,6 @@ export default function AnalyticsScreen() {
               : String(transactionCount),
         },
         {
-          label: 'Top spending recipient',
-          value: highestReceiverName,
-          ...(highestReceiver
-            ? { amount: formatKsh(highestReceiver.amountCents) }
-            : {}),
-        },
-        {
           label: 'Highest expenditure',
           value: 
             highestExpense === undefined
@@ -670,6 +664,15 @@ export default function AnalyticsScreen() {
                 ? METRIC_COLORS.expense.primary
                 : METRIC_COLORS.income.primary,
         },
+        
+        {
+          label: 'Top spending recipient',
+          value: highestReceiverName,
+          amount: highestReceiver
+            ? formatKsh(highestReceiver.amountCents)
+            : '',
+          amountColor: Color.red[800]
+        },
       ];
     }
 
@@ -704,17 +707,19 @@ export default function AnalyticsScreen() {
       items.push({
         label: 'Top income source',
         value: highestSenderName,
-        ...(highestSender
-          ? { amount: formatKsh(highestSender.amountCents) }
-          : {}),
+        amount: highestSender
+          ? formatKsh(highestSender.amountCents)
+          : '',
+        amountColor: Color.lime[800]
       });
 
       items.push({
         label: 'Top spending recipient',
         value: highestReceiverName,
-        ...(highestReceiver
-          ? { amount: formatKsh(highestReceiver.amountCents) }
-          : {}),
+        amount:highestReceiver
+          ? formatKsh(highestReceiver.amountCents) 
+          : '—',
+        amountColor: Color.red[800]
       });
     }
 

@@ -1,12 +1,13 @@
+import { Text } from '@/components/app-text';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
-import { Text } from '@/components/app-text';
 export type SummaryItem = {
   label: string;
   value: string | null;
   amount?: string;
   color?: string;
+  amountColor?: string;
   trend?: 'up' | 'down' | 'neutral';
   trendColor?: string;
 };
@@ -58,7 +59,7 @@ function SummaryCell({ item }: { item: SummaryItem }) {
       <Text style={styles.label}>{item.label}</Text>
 
       <View style={styles.valueRow}>
-        <Text style={[styles.value, { color: item.color ?? '#1a1a1aba' }]}>
+        <Text style={[styles.value, { color: item.color ?? 'rgba(26, 26, 26, 0.65)' }]}>
           {item.value}
         </Text>
 
@@ -72,7 +73,7 @@ function SummaryCell({ item }: { item: SummaryItem }) {
       </View>
 
       {item.amount !== undefined && (
-        <Text style={[styles.amount, { color: item.color ?? '#1a1a1ad4' }]}>{item.amount}</Text>
+        <Text style={[styles.amount, { color: item.amountColor ?? '#1a1a1ad4' }]}>{item.amount}</Text>
       )}
     </View>
   );
