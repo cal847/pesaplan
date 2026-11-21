@@ -3,7 +3,6 @@ import {
   Pressable,
   StyleProp,
   StyleSheet,
-  Text,
   TextStyle,
   View,
 } from 'react-native';
@@ -16,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { usePalette } from '@/hooks/use-theme';
+import { Text } from '@/components/app-text';
 
 export const ROW_GUTTER = 30;
 

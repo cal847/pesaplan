@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ReactNode, useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { useLockStore } from '@/stores/lock-store';
 
 import { UnlockScreen } from './unlock-screen';
@@ -53,7 +54,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   cover: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#F7F5FF',
+    backgroundColor: PAGE_BACKGROUND,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,

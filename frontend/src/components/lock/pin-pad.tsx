@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -73,7 +75,7 @@ export function PinPad({ title, subtitle, message, disabled, shakeKey = 0, onCom
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>{title}</Text>
+      <Text variant="heading" style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
       <Animated.View
@@ -141,7 +143,10 @@ export function PinPad({ title, subtitle, message, disabled, shakeKey = 0, onCom
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', width: '100%' },
-  title: { fontSize: 22, fontWeight: '700', color: '#1A1A1A' },
+  title: {
+    fontSize: 22,
+    color: '#1A1A1A',
+  },
   subtitle: { fontSize: 14, color: '#666', marginTop: 6, textAlign: 'center' },
   dots: { flexDirection: 'row', gap: 14, marginTop: 28 },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: ACCENT },

@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LockSettings } from '@/components/lock/lock-settings';
@@ -10,12 +12,13 @@ import { DonateNumber } from '@/components/profile/donate-number';
 import { ExportModal } from '@/components/profile/export-modal';
 import { ImportPasteModal } from '@/components/profile/import-paste-modal';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PermissionId, pillLabel, tapAction } from '@/lib/permissions';
 import { ThemePreference, useSettingsStore } from '@/stores/settings-store';
 
 const COLORS = {
-  background: '#F0EFF5',
+  background: PAGE_BACKGROUND,
   card: '#FFFFFF',
   text: '#07022A',
   subtext: '#666666',
@@ -103,7 +106,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Profile</Text>
+        <Text variant="heading" style={styles.title}>Profile</Text>
 
         <View style={styles.identity}>
           <View style={styles.avatar}>
@@ -178,7 +181,7 @@ export default function ProfileScreen() {
           <Divider />
           <DisclosureRow label="Donate" icon='heart' labelStyle={styles.rowLabel}>
             <Text style={styles.rowHint}>
-              Support the development of PesaPlan.
+              Support the development of PesaBudge.
             </Text>
             <DonateNumber/>
 
@@ -245,7 +248,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
     textAlign: 'center',
     marginVertical: 12,
     color: COLORS.text,

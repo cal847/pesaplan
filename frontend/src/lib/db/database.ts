@@ -9,7 +9,7 @@ let opening: Promise<SQLite.SQLiteDatabase> | null = null;
 export function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!opening) {
     opening = (async () => {
-      const db = await SQLite.openDatabaseAsync('pesaplan.db');
+      const db = await SQLite.openDatabaseAsync('pesabudge.db');
       await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
       await migrate(db);
       return db;

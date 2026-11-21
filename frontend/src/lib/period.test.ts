@@ -1,6 +1,6 @@
 // frontend/src/lib/period.test.ts
 import { periodBounds } from './period';
-import { formatStamp } from './time';
+import { formatStamp, formatTransactionGroupDate } from './time';
 import { formatKsh } from './sms/money';
 
 const thursday = new Date(2026, 4, 14, 12, 0); // Thu 14 May 2026
@@ -33,6 +33,18 @@ describe('formatStamp', () => {
     ['2025-12-31T00:05', '31 Dec 2025, 12:05 AM'],
   ])('%s', (stamp, expected) => {
     expect(formatStamp(stamp, thursday)).toBe(expected);
+  });
+});
+
+describe('formatTransactionGroupDate', () => {
+  it('formats the weekday, month, and date without repeating the current year', () => {
+    expect(formatTransactionGroupDate('2026-05-14T09:33', thursday)).toBe('Thursday, May 14');
+  });
+
+  it('includes the year for older transactions', () => {
+    expect(formatTransactionGroupDate('2025-12-31T09:33', thursday)).toBe(
+      'Wednesday, December 31, 2025'
+    );
   });
 });
 

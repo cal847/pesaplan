@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { CategorySection } from '@/components/budget/category-section';
 import { EditBudgetModal } from '@/components/budget/edit-budget-modal';
 import { EditCategoryModal } from '@/components/budget/edit-category-modal';
@@ -101,7 +104,7 @@ export default function BudgetScreen() {
           <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
 
-        <Text style={styles.title}>My Budget</Text>
+        <Text variant="heading" style={styles.title}>My Budget</Text>
 
         <TouchableOpacity onPress={() => setEditMode((v) => !v)}>
           <Ionicons name={editMode ? 'checkmark' : 'pencil'} size={25} color="#2e0359" />
@@ -191,7 +194,7 @@ export default function BudgetScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F0EFF5' },
+  safeArea: { flex: 1, backgroundColor: PAGE_BACKGROUND },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -199,7 +202,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  title: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  title: {
+    fontSize: 18,
+    color: '#1A1A1A',
+  },
   subHeader: {
     flexDirection: 'row',
     alignItems: 'center',

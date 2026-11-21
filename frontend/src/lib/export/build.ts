@@ -51,7 +51,7 @@ export function buildCsv({ rows }: ExportInput): string {
 
 export function buildText({ rows, totals, periodLabel, exportedAt }: ExportInput): string {
   const head = [
-    'PesaPlan transactions',
+    'PesaBudge transactions',
     `Period: ${periodLabel}`,
     `Exported: ${display(exportedAt)}`,
     '',
@@ -105,7 +105,7 @@ export function buildHtml({ rows, totals, periodLabel, exportedAt }: ExportInput
     .income { color: #1fa64a; } .expense { color: #d6393f; }
     .foot { margin-top: 16px; color: #999; font-size: 9px; }
   </style></head><body>
-    <h1>PesaPlan transactions</h1>
+    <h1>PesaBudge transactions</h1>
     <div class="meta">${esc(periodLabel)} · exported ${esc(display(exportedAt))}</div>
     <div class="summary">
       <div class="box">Income<b>${esc(formatKsh(totals.incomeCents))}</b></div>

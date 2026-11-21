@@ -1,4 +1,6 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 import { JiggleCard } from './jiggle-card';
 import { JiggableHeader } from './jiggable-header';

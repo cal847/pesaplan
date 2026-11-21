@@ -6,10 +6,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+
+import { Text, TextInput } from '@/components/app-text';
 
 import { BudgetItem, BudgetItemInput } from './budget-data';   // drop formatAmount and parseAmount
 import { centsToPlain, formatKsh, kshToCents } from '@/lib/sms/money';
@@ -105,7 +105,7 @@ export function EditBudgetModal({ visible, item, sectionTitle, takenNames, onClo
 
         <View style={styles.sheet}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <Text style={styles.title}>{heading}</Text>
+            <Text variant="heading" style={styles.title}>{heading}</Text>
 
             <View style={[styles.preview, { backgroundColor: color }]}>
               <Text style={styles.previewIcon}>{icon}</Text>
@@ -215,7 +215,10 @@ const styles = StyleSheet.create({
     maxHeight: '88%',
   },
   content: { padding: 24 },
-  title: { fontSize: 18, fontWeight: '700', marginBottom: 16 },
+  title: {
+    fontSize: 18,
+    marginBottom: 16,
+  },
   preview: { alignSelf: 'center', width: 108, borderRadius: 14, padding: 10, marginBottom: 8 },
   previewIcon: { fontSize: 16 },
   previewName: { fontWeight: '700', fontSize: 12, marginTop: 4, color: '#1A1A1A' },

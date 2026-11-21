@@ -1,5 +1,8 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
+
+import { FONT_FAMILIES } from '@/components/app-text';
+
 import { useJiggle } from './jiggle-card';
 
 type Props = {
@@ -14,7 +17,9 @@ export function JiggableHeader({ title, editMode, index, onPress }: Props) {
 
   return (
     <Pressable onPress={onPress} disabled={!editMode}>
-      <Animated.Text style={[styles.title, animatedStyle]}>
+      <Animated.Text
+        style={[{ fontFamily: FONT_FAMILIES.headingItalic }, styles.title, animatedStyle]}
+      >
         {title}
       </Animated.Text>
     </Pressable>
@@ -23,9 +28,7 @@ export function JiggableHeader({ title, editMode, index, onPress }: Props) {
 
 const styles = StyleSheet.create({
   title: { 
-    fontWeight: '700', 
     fontSize: 15, 
-    fontStyle: 'italic',
     paddingVertical: 4,
     paddingRight: 8,
   },

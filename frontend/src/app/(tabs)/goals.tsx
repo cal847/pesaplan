@@ -4,13 +4,14 @@ import { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { Text } from '@/components/app-text';
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { AddGoalModal } from '@/components/goals/add-goal-modal';
 
 // Placeholder — swap for GET /api/v1/goals and /api/v1/goals/progress/all
@@ -57,7 +58,7 @@ export default function GoalsScreen() {
           <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
 
-        <Text style={styles.title}>My Goals</Text>
+        <Text variant="heading" style={styles.title}>My Goals</Text>
 
         <View style={styles.headerSpacer} />
       </View>
@@ -70,7 +71,7 @@ export default function GoalsScreen() {
         >
           <View style={styles.topGoalsHeader}>
             <Ionicons name="trophy-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.topGoalsTitle}>Your Top Goals</Text>
+            <Text variant="heading" style={styles.topGoalsTitle}>Your Top Goals</Text>
           </View>
 
           {TOP_GOALS.map((goal) => (
@@ -110,7 +111,7 @@ export default function GoalsScreen() {
 
         {/* Current goals */}
         <View style={styles.currentGoalsCard}>
-          <Text style={styles.currentGoalsTitle}>Current Goals</Text>
+          <Text variant="heading" style={styles.currentGoalsTitle}>Current Goals</Text>
 
           <View style={styles.goalList}>
             {CURRENT_GOALS.map((goal, index) => (
@@ -170,7 +171,7 @@ function GoalCheckRow({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F0EFF5',
+    backgroundColor: PAGE_BACKGROUND,
   },
   header: {
     flexDirection: 'row',
@@ -181,7 +182,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
     color: '#1A1A1A',
   },
   headerSpacer: {
@@ -210,7 +210,6 @@ const styles = StyleSheet.create({
   },
   topGoalsTitle: {
     color: '#FFFFFF',
-    fontWeight: '700',
     fontSize: 20,
   },
   bulletRow: {
@@ -272,7 +271,6 @@ const styles = StyleSheet.create({
   },
   currentGoalsTitle: {
     fontSize: 17,
-    fontWeight: '700',
     textAlign: 'center',
     color: '#021f02',
     paddingTop: 5,

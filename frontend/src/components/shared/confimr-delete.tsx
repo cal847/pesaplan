@@ -4,9 +4,10 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 type Props = {
   visible: boolean;
@@ -60,7 +61,7 @@ export function ConfirmDeleteModal({
           style={styles.sheet}
           onPress={(event) => event.stopPropagation()}
         >          
-          <Text style={styles.title}>{title}</Text>
+          <Text variant="heading" style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
 
           <View style={styles.actions}>
@@ -120,7 +121,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
     color: '#07022A',
     textAlign: 'center',
   },

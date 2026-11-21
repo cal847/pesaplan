@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { ParsedTransaction, TransactionType } from '@/lib/sms/types';
+import { toLocalStamp } from '../time';
 
 // Only the methods used here, so tests can pass a stand-in
 type Db = Pick<SQLiteDatabase, 'runAsync' | 'getAllAsync' | 'getFirstAsync' | 'withTransactionAsync'>;
@@ -21,7 +22,37 @@ export type StoredTransaction = {
   simKey: string; // '' when the SIM isn't known
 };
 
-export type Totals = { incomeCents: number; expenseCents: number; savingsCents: number };
+export type Totals = {
+  incomeCents: number;
+  expenseCents: number;
+  savingsCents: number
+};
+
+export type TopMerchant = {
+  name: string;
+  amountCents: number;
+};
+
+export type AnalyticsTotals = Totals & {
+  transactionCount: number;
+  highestExpenseCents: number;
+  highestSender: TopMerchant | null;
+  highestReceiver: TopMerchant | null;
+  smallCostsCents: number;
+  incomeGrowthPercent: number | null;
+  expenseGrowthPercent: number | null;
+};
+
+export function normalizedMerchant(merchant: string | null | undefined): string | null {
+  const normalized = merchant?.trim().replace(/\s+/g, ' ').toLowerCase();
+  
+  if (!normalized) return null;
+  
+  return normalized
+    .split(' ')
+    .map((name) => name.charAt(0).toUpperCase() + name.slice(1))
+    .join(' ');
+}
 
 // snake_case in the database, camelCase in the app
 const COLUMNS = `id, code, type, amount_cents AS amountCents, fee_cents AS feeCents,
@@ -35,15 +66,34 @@ const INSERT = `
     (id, code, type, amount_cents, fee_cents, merchant, account_number,
      category_id, occurred_at, source, created_at, sim_key)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  ON CONFLICT(code, sim_key) DO NOTHING`;
+  ON CONFLICT(code, type) DO NOTHING`;
 
 type NewTransaction = Omit<StoredTransaction, 'id' | 'createdAt'>;
 
+
 /** Returns the new id, or null when the code already exists. */
 async function insert(db: Db, tx: NewTransaction): Promise<string | null> {
+  // Sending money to your alternate number is recorded and not marked as a duplicate
+  if (tx.code){
+    // Checks whether the transaction exists in the db then assigns the sim_key if it does.
+    const existing = await db.getFirstAsync<{ id: string; simKey: string}>(
+      'SELECT id, sim_key AS simKey FROM transactions WHERE code = ? AND type = ? LIMIT 1',
+      [tx.code, tx.type]
+    );
+    if (existing) {
+      // it now arrives with a known SIM, so tag the stored copy with it
+      if (tx.simKey && existing.simKey !== tx.simKey) {
+        await db.runAsync('UPDATE transactions SET sim_key = ? WHERE id = ?', [tx.simKey, existing.id]);
+      }
+      return null;
+    }
+  }
   const id = Crypto.randomUUID();
+
+  const merchant = normalizedMerchant(tx.merchant);
+
   const result = await db.runAsync(INSERT, [
-    id, tx.code, tx.type, tx.amountCents, tx.feeCents, tx.merchant,
+    id, tx.code, tx.type, tx.amountCents, tx.feeCents, merchant,
     tx.accountNumber, tx.categoryId, tx.occurredAt, tx.source, Date.now(), tx.simKey
   ]);
   return result.changes === 1 ? id : null;
@@ -108,7 +158,23 @@ export async function addManual(db: Db, input: ManualInput): Promise<string> {
 
 export function listTransactions(
   db: Db,
-  { limit = 20, offset = 0, type, simKey }: { limit?: number; offset?: number; type?: TransactionType; simKey?: string } = {}
+  {
+    limit = 20,
+    offset = 0,
+    type,
+    simKey,
+    from,
+    to,
+    search,
+  }: {
+    limit?: number;
+    offset?: number;
+    type?: TransactionType;
+    simKey?: string | null;
+    from?: string;
+    to?: string;
+    search?: string;
+  } = {}
 ) {
   const filters: string[] = [];
   const params: (string | number)[] = [];
@@ -117,9 +183,22 @@ export function listTransactions(
     filters.push('type = ?');
     params.push(type);
   }
-  if (simKey) {
+  if (simKey != null) {
     filters.push('sim_key = ?');
     params.push(simKey);
+  }
+  if (from !== undefined) {
+    filters.push('occurred_at >= ?');
+    params.push(from);
+  }
+  if (to !== undefined) {
+    filters.push('occurred_at < ?');
+    params.push(to);
+  }
+  const searchTerm = search?.trim();
+  if (searchTerm) {
+    filters.push("(COALESCE(merchant, '') LIKE ? OR COALESCE(code, '') LIKE ?)");
+    params.push(`%${searchTerm}%`, `%${searchTerm}%`);
   }
   return db.getAllAsync<StoredTransaction>(
     // If 'type' exists, use WHERE type=? AND sim_key=?
@@ -133,11 +212,11 @@ export function listTransactions(
 }
 
 /** Totals. Expense amounts already include the M-Pesa fee. */
-export async function totalsBetween(db: Db, from: string, to: string, simKey: string): Promise<Totals> {
-  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?', 'sim_key = ?'];
+export async function totalsBetween(db: Db, from: string, to: string, simKey: string | null = null): Promise<Totals> {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?'];
   const params: (string | number)[] = [from, to];
 
-  if (simKey !== undefined) {
+  if (simKey !== null) {
     filters.push('sim_key = ?');
     params.push(simKey);
   }
@@ -154,12 +233,20 @@ export async function totalsBetween(db: Db, from: string, to: string, simKey: st
 }
 
 // Lists transactions between a given range
-export function listBetween(db: Db, from: string, to: string, simKey: string) {
+export function listBetween(db: Db, from: string, to: string, simKey: string | null) {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?']
+  const params: (string | number)[] = [from, to]
+
+  if (simKey != null) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
+
   return db.getAllAsync<StoredTransaction>(
     `SELECT ${COLUMNS} FROM transactions
-     WHERE occurred_at >= ? AND occurred_at < ? AND sim_key = ?
+     WHERE ${filters.join( ' AND ' )}
      ORDER BY occurred_at ASC, created_at ASC`,
-    [from, to, simKey]
+    params
   );
 }
 
@@ -175,10 +262,10 @@ export async function countBetween(db: Db, from: string, to: string, simKey: str
 export type DailyTotals = { day: string; incomeCents: number; expenseCents: number };
 
 // Calculates income and expense per day.
-export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: string) {
-  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?', 'sim_key = ?'];
+export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: string | null) {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?'];
   const params: (string | number)[] = [from, to];
-  if (simKey !== undefined) {
+  if (simKey !== null) {
     filters.push('sim_key = ?');
     params.push(simKey);
   }
@@ -193,4 +280,126 @@ export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: str
      ORDER BY day`,
     params
   );
+}
+
+type AnalyticsTotalsRow = {
+  incomeCents: number;
+  expenseCents: number;
+  savingsCents: number;
+  transactionCount: number;
+  highestExpenseCents: number;
+  highestSenderName: string | null;
+  highestSenderAmountCents: number | null;
+  highestReceiverName: string | null;
+  highestReceiverAmountCents: number | null;
+  smallCostsCents: number;
+};
+
+export async function analyticsTotalsBetween(
+  db: Db,
+  from: string,
+  to: string,
+  simKey: string | null = null
+): Promise<AnalyticsTotals> {
+  const filters = ['occurred_at >= ?', 'occurred_at < ?'];
+  const params: (string | number)[] = [from, to];
+
+  if (simKey !== null) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
+
+  const row = await db.getFirstAsync<AnalyticsTotalsRow>(
+    `WITH filtered AS (
+       SELECT type, amount_cents, merchant
+       FROM transactions
+       WHERE ${filters.join(' AND ')}
+     ),
+     summary AS (
+       SELECT
+         COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0)
+           AS incomeCents,
+         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0)
+           AS expenseCents,
+         COALESCE(SUM(CASE WHEN type = 'savings' THEN amount_cents ELSE 0 END), 0)
+           AS savingsCents,
+         COUNT(*) AS transactionCount,
+         COALESCE(MAX(CASE WHEN type = 'expense' THEN amount_cents END), 0)
+           AS highestExpenseCents,
+         COALESCE(SUM(CASE
+           WHEN type = 'expense' AND amount_cents < 10000 THEN amount_cents
+           ELSE 0
+         END), 0) AS smallCostsCents
+       FROM filtered
+     ),
+     sender_totals AS (
+       SELECT
+         MIN(TRIM(merchant)) AS name,
+         SUM(amount_cents) AS amountCents
+       FROM filtered
+       WHERE type = 'income'
+         AND merchant IS NOT NULL
+         AND TRIM(merchant) <> ''
+       GROUP BY LOWER(TRIM(merchant))
+     ),
+     receiver_totals AS (
+       SELECT
+         MIN(TRIM(merchant)) AS name,
+         SUM(amount_cents) AS amountCents
+       FROM filtered
+       WHERE type = 'expense'
+         AND merchant IS NOT NULL
+         AND TRIM(merchant) <> ''
+       GROUP BY LOWER(TRIM(merchant))
+     ),
+     top_sender AS (
+       SELECT name, amountCents
+       FROM sender_totals
+       ORDER BY amountCents DESC, name ASC
+       LIMIT 1
+     ),
+     top_receiver AS (
+       SELECT name, amountCents
+       FROM receiver_totals
+       ORDER BY amountCents DESC, name ASC
+       LIMIT 1
+     )
+     SELECT
+       summary.*,
+       top_sender.name AS highestSenderName,
+       top_sender.amountCents AS highestSenderAmountCents,
+       top_receiver.name AS highestReceiverName,
+       top_receiver.amountCents AS highestReceiverAmountCents
+     FROM summary
+     LEFT JOIN top_sender ON 1 = 1
+     LEFT JOIN top_receiver ON 1 = 1`,
+    params
+  );
+
+  return {
+    incomeCents: row?.incomeCents ?? 0,
+    expenseCents: row?.expenseCents ?? 0,
+    savingsCents: row?.savingsCents ?? 0,
+    transactionCount: row?.transactionCount ?? 0,
+    highestExpenseCents: row?.highestExpenseCents ?? 0,
+    highestSender:
+      row?.highestSenderName != null &&
+      row.highestSenderAmountCents != null
+        ? {
+            name: row.highestSenderName,
+            amountCents: row.highestSenderAmountCents,
+          }
+        : null,
+    highestReceiver:
+      row?.highestReceiverName != null &&
+      row.highestReceiverAmountCents != null
+        ? {
+            name: row.highestReceiverName,
+            amountCents: row.highestReceiverAmountCents,
+          }
+        : null,
+    smallCostsCents: row?.smallCostsCents ?? 0,
+    incomeGrowthPercent: null,
+    expenseGrowthPercent: null,
+  };
 }

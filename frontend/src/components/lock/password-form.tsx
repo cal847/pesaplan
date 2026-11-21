@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+
+import { Text, TextInput } from '@/components/app-text';
 import Animated from 'react-native-reanimated';
 
 import { PASSWORD_MAX } from '@/lib/lock/rules';
@@ -28,7 +30,7 @@ export function PasswordForm({
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>{title}</Text>
+      <Text variant="heading" style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
       <Animated.View style={[styles.field, shakeStyle]}>
@@ -75,7 +77,10 @@ export function PasswordForm({
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', width: '100%', paddingHorizontal: 28 },
-  title: { fontSize: 22, fontWeight: '700', color: '#1A1A1A' },
+  title: {
+    fontSize: 22,
+    color: '#1A1A1A',
+  },
   subtitle: { fontSize: 14, color: '#666', marginTop: 6, textAlign: 'center' },
   field: {
     flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 28,

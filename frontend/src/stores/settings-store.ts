@@ -18,6 +18,9 @@ type SettingsStore = {
   setSmsScannedUntil: (v: number) => void;
   setSmsPromptShown: (v: boolean) => void;
   setActiveSim: (v: string | null) => void;
+  lastBackupAt: number | null,
+  lastBackupEmail: string | null,
+  setLastBackup: (at: number | null, email: string | null) => void;
 };
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -35,7 +38,10 @@ export const useSettingsStore = create<SettingsStore>()(
       setSmsScannedUntil: (smsScannedUntil) => set({ smsScannedUntil }),
       setSmsPromptShown: (smsPromptShown) => set({ smsPromptShown }),
       setActiveSim: (activeSim) => set({ activeSim }),
+      lastBackupAt: null,
+      lastBackupEmail: null,
+      setLastBackup: (lastBackupAt, lastBackupEmail) => set({ lastBackupAt, lastBackupEmail }),
     }),
-    { name: 'pesaplan-settings', storage: createJSONStorage(() => AsyncStorage) }
+    { name: 'pesabudge-settings', storage: createJSONStorage(() => AsyncStorage) }
   )
 );

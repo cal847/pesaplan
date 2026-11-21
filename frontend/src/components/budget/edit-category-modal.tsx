@@ -5,10 +5,10 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+
+import { Text, TextInput } from '@/components/app-text';
 
 const MAX_LENGTH = 40;
 
@@ -45,7 +45,7 @@ export function EditCategoryModal({ visible, currentTitle, onClose, onSave }: Pr
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
         <View style={styles.sheet}>
-          <Text style={styles.title}>Rename Category</Text>
+          <Text variant="heading" style={styles.title}>Rename Category</Text>
           <Text style={styles.subtitle}>Shown as the section heading on your budget.</Text>
 
           <View style={styles.inputWrap}>
@@ -86,7 +86,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
   },
-  title: { fontSize: 18, fontWeight: '700' },
+  title: {
+    fontSize: 18,
+  },
   subtitle: { fontSize: 13, color: '#888', marginTop: 4, marginBottom: 20 },
   inputWrap: {
     flexDirection: 'row',

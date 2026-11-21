@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 import { DONATION_NUMBER, formatPhone, toDialable } from '@/lib/donate';
 

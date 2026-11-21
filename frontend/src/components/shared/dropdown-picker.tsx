@@ -4,12 +4,13 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 type DropdownPickerProps = {
   label: string;
@@ -58,7 +59,7 @@ export function DropdownPicker({
         onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>{label}</Text>
+            <Text variant="heading" style={styles.sheetTitle}>{label}</Text>
             {options.map((opt) => (
               <Pressable
                 key={opt}
@@ -91,7 +92,11 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   sheet: { backgroundColor: '#FFF', borderRadius: 16, padding: 16 },
-  sheetTitle: { fontSize: 13, color: '#888', marginBottom: 8 },
+  sheetTitle: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 8,
+  },
   option: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 },
   optionText: { fontSize: 15, color: '#333' },
   optionTextActive: { color: '#3F2FD6', fontWeight: '700' },

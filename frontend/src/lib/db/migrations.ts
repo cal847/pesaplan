@@ -219,6 +219,12 @@ const MIGRATIONS: string[] = [
     ON transactions (type, occurred_at);
   CREATE UNIQUE INDEX idx_transactions_code_sim_key
     ON transactions (code, sim_key);
+  `,
+  //v7: Alter unique constraint from (code, sim_key) to (code, type) to prevent duplicate transactions on restore
+  `
+  DROP INDEX IF EXISTS id_transactions_code_sim_key;
+  CREATE UNIQUE INDEX id_transactions_code_type ON transactions (code, type);
+
   `
 ];
 

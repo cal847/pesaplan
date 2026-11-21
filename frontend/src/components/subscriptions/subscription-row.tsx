@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/app-text';
 type Props = { name: string; dueDate: string; amount: number };
 
 export function SubscriptionRow({ name, dueDate, amount }: Props) {

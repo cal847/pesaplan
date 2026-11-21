@@ -1,33 +1,71 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 
 type Props = {
   merchantName: string;
   date: string;
-  amountText: string };
+  code: string;
+  amountText: string;
+  amountColor: string;
+  isLast?: boolean;
+};
 
-export function TransactionPill({ merchantName, date, amountText }: Props) {
+export function TransactionPill({ merchantName, date, code, amountText, amountColor, isLast = false }: Props) {
   return (
-    <View style={styles.pill}>
-      <View>
-        <Text style={styles.merchant}>{merchantName}</Text>
-        <Text style={styles.date}>{date}</Text>
+    <View>
+      <View style={styles.row}>
+        <View style={styles.details}>
+          <Text style={styles.merchant} numberOfLines={1}>{merchantName}</Text>
+          <Text style={styles.date}>{date}</Text>
+          <Text style={styles.code} numberOfLines={1}>{code}</Text>
+        </View>
+        <Text style={[styles.amount, { color: amountColor }]} numberOfLines={1}>
+          {amountText}
+        </Text>
       </View>
-      <Text style={styles.amount}> {amountText}</Text>
+
+      {!isLast && <View style={styles.divider}/>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pill: {
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    gap: 16,
+    paddingVertical: 12,
+    paddingLeft: 5
   },
-  merchant: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
-  date: { fontSize: 11, color: '#999', marginTop: 1 },
-  amount: { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
+  details: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  merchant: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1A1724',
+  },
+  date: {
+    fontSize: 12,
+    color: '#6E6A78',
+  },
+  code: {
+    fontSize: 11,
+    color: '#8D8996',
+  },
+  amount: {
+    maxWidth: '46%',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  divider: {
+    borderBottomWidth: 1,
+    borderStyle: 'dotted',
+    borderBottomColor: '#D5D0E0',
+  },
 });

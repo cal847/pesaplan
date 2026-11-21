@@ -8,10 +8,10 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+
+import { Text, TextInput } from '@/components/app-text';
 
 import { getDb } from '@/lib/db/database';
 import { saveParsedMany } from '@/lib/db/transactions';
@@ -93,7 +93,7 @@ export function ImportPasteModal({ visible, onClose }: { visible: boolean; onClo
               <View style={styles.doneIcon}>
                 <Ionicons name="checkmark-circle" size={44} color="#1FA64A" />
               </View>
-              <Text style={styles.title}>Import complete</Text>
+              <Text variant="heading" style={styles.title}>Import complete</Text>
               <Text style={styles.line}>
                 {result.saved} transaction{result.saved === 1 ? '' : 's'} added
               </Text>
@@ -112,7 +112,7 @@ export function ImportPasteModal({ visible, onClose }: { visible: boolean; onClo
             </>
           ) : (
             <>
-              <Text style={styles.title}>Paste messages</Text>
+              <Text variant="heading" style={styles.title}>Paste messages</Text>
               <Text style={styles.subtitle}>
                 Copy M-Pesa messages from your messages app and paste them here. Messages you've
                 added before are skipped.
@@ -161,7 +161,9 @@ export function ImportPasteModal({ visible, onClose }: { visible: boolean; onClo
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
-  title: { fontSize: 18, fontWeight: '700' },
+  title: {
+    fontSize: 18,
+  },
   subtitle: { fontSize: 13, color: '#888', marginTop: 4, marginBottom: 14 },
   input: {
     height: 170,

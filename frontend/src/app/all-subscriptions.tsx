@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+
+import { Text } from '@/components/app-text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PAGE_BACKGROUND } from '@/constants/colors';
 import { SubscriptionRow } from '@/components/subscriptions/subscription-row';
 
 // Placeholder — swap for GET /api/v1/home/bills/all once the client exists
@@ -32,7 +35,7 @@ export default function AllSubscriptionsScreen() {
         >
     <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={styles.title}>Subscriptions</Text>
+        <Text variant="heading" style={styles.title}>Subscriptions</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -50,7 +53,7 @@ export default function AllSubscriptionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F7F6FB' },
+  safeArea: { flex: 1, backgroundColor: PAGE_BACKGROUND },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -58,7 +61,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  title: { fontSize: 18, fontWeight: '700' },
+  title: {
+    fontSize: 18,
+  },
   listContent: { paddingHorizontal: 16 },
   separator: { height: 1, backgroundColor: '#E5E3F0' },
 });

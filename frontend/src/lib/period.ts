@@ -40,3 +40,37 @@ export function periodBounds(period: SpendingPeriod, now = new Date()) {
   }
   return { from: toLocalStamp(start), to: toLocalStamp(end) };
 }
+
+export function previousPeriodBounds(period: SpendingPeriod) {
+  const current = periodBounds(period);
+
+  // These functions assume your period bounds are date-based.
+  // Adjust the date arithmetic to match your existing period implementation.
+  const from = new Date(current.from);
+  const to = new Date(current.to);
+
+  if (period === 'Daily') {
+    from.setDate(from.getDate() - 1);
+    to.setDate(to.getDate() - 1);
+  }
+
+  if (period === 'Weekly') {
+    from.setDate(from.getDate() - 7);
+    to.setDate(to.getDate() - 7);
+  }
+
+  if (period === 'Monthly') {
+    from.setMonth(from.getMonth() - 1);
+    to.setMonth(to.getMonth() - 1);
+  }
+
+  if (period === 'Yearly') {
+    from.setFullYear(from.getFullYear() - 1);
+    to.setFullYear(to.getFullYear() - 1);
+  }
+
+  return {
+    from: from.toISOString(),
+    to: to.toISOString(),
+  };
+}

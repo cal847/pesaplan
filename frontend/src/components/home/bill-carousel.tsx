@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Dimensions, FlatList, StyleSheet } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
+  type SharedValue,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
@@ -23,35 +24,19 @@ type Props = {
   bills: Bill[];
 };
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const CARD_WIDTH = 170;
-const CARD_MARGIN = 10;
-const ITEM_WIDTH = CARD_WIDTH + CARD_MARGIN;
-const PADDING_LEFT = 20;
-
-const CENTER_OFFSET = (SCREEN_WIDTH - CARD_WIDTH) / 2;
-
-function getSnapOffsets(numberOfCards: number) {
-  return Array.from({ length: numberOfCards }, (_, index) => {
-    if (index === 0) {
-      return 0;
-    }
-
-    return index * ITEM_WIDTH - CENTER_OFFSET + PADDING_LEFT;
-  });
-}
-
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+const CARD_WIDTH = 140;
+const CARD_GAP = 6;
+const ITEM_WIDTH = CARD_WIDTH + CARD_GAP;
+const PADDING_LEFT = 4;
 
 export function BillsCarousel({ bills }: Props) {
+  const { width } = useWindowDimensions();
   const upcomingBills = bills.filter(
     (bill) => bill.days_remaining <= 30
   );
 
   const scrollX = useSharedValue(0);
-
-  const snapOffsets = getSnapOffsets(upcomingBills.length);
+  const viewportWidth = width - 32;
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -60,31 +45,24 @@ export function BillsCarousel({ bills }: Props) {
   });
 
   return (
-    <AnimatedFlatList
+    <Animated.FlatList<Bill>
       data={upcomingBills}
       horizontal
       showsHorizontalScrollIndicator={false}
-      decelerationRate="fast"
-      snapToOffsets={snapOffsets}
       bounces={false}
       overScrollMode="never"
       alwaysBounceHorizontal={false}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       contentContainerStyle={styles.listContent}
-      keyExtractor={(item: Bill) => item.bill_name}
-      renderItem={({
-        item,
-        index,
-      }: {
-        item: Bill;
-        index: number;
-      }) => (
+      keyExtractor={(item) => item.bill_name}
+      renderItem={({ item, index }) => (
         <CarouselCard
           item={item}
           index={index}
           scrollX={scrollX}
           totalItems={upcomingBills.length}
+          viewportWidth={viewportWidth}
         />
       )}
     />
@@ -96,36 +74,24 @@ function CarouselCard({
   index,
   scrollX,
   totalItems,
+  viewportWidth,
 }: {
   item: Bill;
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   totalItems: number;
+  viewportWidth: number;
 }) {
   const animatedStyle = useAnimatedStyle(() => {
     if (totalItems <= 2) {
       return {
-        opacity: 1,
         transform: [{ scale: 1 }],
       };
     }
 
-    const cardPosition = PADDING_LEFT + index * ITEM_WIDTH;
     const focusedPosition =
-      index === 0
-        ? 0
-        : index * ITEM_WIDTH - CENTER_OFFSET + PADDING_LEFT;
-    const distance = Math.abs(scrollX.value - focusedPosition);
-    const opacity = interpolate(
-      distance,
-      [0, ITEM_WIDTH, ITEM_WIDTH * 2],
-      [1, 0.25, 0.25],
-      Extrapolation.CLAMP
-    );
-
-    /*
-     * Slightly shrink cards that aren't focused.
-     */
+      PADDING_LEFT + index * ITEM_WIDTH + CARD_WIDTH / 2;
+    const distance = Math.abs(scrollX.value + viewportWidth / 2 - focusedPosition);
     const scale = interpolate(
       distance,
       [0, ITEM_WIDTH, ITEM_WIDTH * 2],
@@ -134,7 +100,6 @@ function CarouselCard({
     );
 
     return {
-      opacity,
       transform: [{ scale }],
     };
   });
@@ -161,6 +126,7 @@ const styles = StyleSheet.create({
 
   cardWrapper: {
     width: CARD_WIDTH,
-    marginRight: CARD_MARGIN,
+    height: 75,
+    marginRight: CARD_GAP,
   },
 });

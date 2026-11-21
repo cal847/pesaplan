@@ -7,7 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import type { SecretKind } from './rules';
 
-const KEY = 'pesaplan.lock.v1';
+const KEY = 'pesabudge.lock.v1';
 // "this device only" keeps the entry out of device-to-device migrations on iOS
 const OPTIONS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 

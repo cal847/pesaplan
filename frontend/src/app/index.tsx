@@ -1,6 +1,8 @@
-// frontend/src/app/index.tsx
-import { Ionicons } from '@expo/vector-icons';
+/**
+ * Splash screen route.
+ */
 import { KaushanScript_400Regular, useFonts } from '@expo-google-fonts/kaushan-script';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -156,7 +158,7 @@ export default function SplashRoute() {
             </Animated.View>
 
             <Animated.Text accessibilityRole="header" style={[styles.wordmark, wordStyle]}>
-              PesaPlan
+              PesaBudge
             </Animated.Text>
 
             <View style={styles.taglineRow} accessible accessibilityLabel={TAGLINE}>
