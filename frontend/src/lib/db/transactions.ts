@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { ParsedTransaction, TransactionType } from '@/lib/sms/types';
+import { toLocalStamp } from '../time';
 
 // Only the methods used here, so tests can pass a stand-in
 type Db = Pick<SQLiteDatabase, 'runAsync' | 'getAllAsync' | 'getFirstAsync' | 'withTransactionAsync'>;
@@ -21,7 +22,21 @@ export type StoredTransaction = {
   simKey: string; // '' when the SIM isn't known
 };
 
-export type Totals = { incomeCents: number; expenseCents: number; savingsCents: number };
+export type Totals = {
+  incomeCents: number;
+  expenseCents: number;
+  savingsCents: number
+};
+
+export type AnalyticsTotals = Totals & {
+  transactionCount: number;
+  highestExpenseCents: number;
+  highestSender: string | null;
+  highestReceiver: string | null;
+  smallCostsCents: number;
+  incomeGrowthPercent: number | null;
+  expenseGrowthPercent: number | null;
+};
 
 // snake_case in the database, camelCase in the app
 const COLUMNS = `id, code, type, amount_cents AS amountCents, fee_cents AS feeCents,
@@ -199,7 +214,7 @@ export async function totalsBetween(db: Db, from: string, to: string, simKey: st
 
 // Lists transactions between a given range
 export function listBetween(db: Db, from: string, to: string, simKey: string | null) {
-  const filters: string[] = ['occured_at >= ?', 'occured_at < ?']
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?']
   const params: (string | number)[] = [from, to]
 
   if (simKey != null) {
@@ -209,9 +224,9 @@ export function listBetween(db: Db, from: string, to: string, simKey: string | n
 
   return db.getAllAsync<StoredTransaction>(
     `SELECT ${COLUMNS} FROM transactions
-     WHERE ${filters.join( 'AND' )}
+     WHERE ${filters.join( ' AND ' )}
      ORDER BY occurred_at ASC, created_at ASC`,
-    [...params, simKey]
+    params
   );
 }
 
@@ -245,4 +260,89 @@ export function dailyTotalsBetween(db: Db, from: string, to: string, simKey: str
      ORDER BY day`,
     params
   );
+}
+
+export async function analyticsTotalsBetween(
+  db: Db,
+  from: string,
+  to: string,
+  simKey: string | null = null
+): Promise<AnalyticsTotals> {
+  const filters: string[] = ['occurred_at >= ?', 'occurred_at < ?'];
+  const params: (string | number)[] = [from, to];
+
+  if (simKey !== null) {
+    filters.push('sim_key = ?');
+    params.push(simKey);
+  }
+
+  const where = filters.join(' AND ');
+
+  const [totals, details] = await Promise.all([
+    totalsBetween(db, from, to, simKey),
+
+    db.getFirstAsync<{
+      transactionCount: number;
+      highestExpenseCents: number;
+      highestSender: string | null;
+      highestReceiver: string | null;
+      smallCostsCents: number;
+    }>(
+      `WITH filtered AS (
+        SELECT type, amount_cents, merchant
+        FROM transactions
+        WHERE ${where}
+      )
+      SELECT
+        COUNT(*) AS transactionCount,
+
+        COALESCE(
+          MAX(CASE WHEN type = 'expense' THEN amount_cents END),
+          0
+        ) AS highestExpenseCents,
+
+        (
+          SELECT merchant
+          FROM filtered
+          WHERE type = 'income'
+            AND merchant IS NOT NULL
+            AND TRIM(merchant) <> ''
+          GROUP BY merchant
+          ORDER BY SUM(amount_cents) DESC
+          LIMIT 1
+        ) AS highestSender,
+
+        (
+          SELECT merchant
+          FROM filtered
+          WHERE type = 'expense'
+            AND merchant IS NOT NULL
+            AND TRIM(merchant) <> ''
+          GROUP BY merchant
+          ORDER BY SUM(amount_cents) DESC
+          LIMIT 1
+        ) AS highestReceiver,
+
+        COALESCE(
+          SUM(CASE
+            WHEN type = 'expense' AND amount_cents < 10000 THEN amount_cents
+            ELSE 0
+          END),
+          0
+        ) AS smallCostsCents
+      FROM filtered`,
+      params
+    ),
+  ]);
+
+  return {
+    ...totals,
+    transactionCount: details?.transactionCount ?? 0,
+    highestExpenseCents: details?.highestExpenseCents ?? 0,
+    highestSender: details?.highestSender ?? null,
+    highestReceiver: details?.highestReceiver ?? null,
+    smallCostsCents: details?.smallCostsCents ?? 0,
+    incomeGrowthPercent: null, 
+    expenseGrowthPercent: null,
+  };
 }

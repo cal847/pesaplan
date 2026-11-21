@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // import { CategoryList } from '@/components/analytics/category-list';
 import { DonutChart, Slice } from '@/components/analytics/donut-chart';
-import { StatCard } from '@/components/analytics/stat-card';
+import { SummaryGrid, SummaryItem } from '@/components/analytics/stat-summary';
 import { Text } from '@/components/app-text';
 import { DropdownPicker } from '@/components/shared/dropdown-picker';
 import { Color } from '@/components/ui/color-pallete';
@@ -23,7 +23,6 @@ import { useAnalytics } from '@/hooks/use-analytics';
 import { ANALYTICS_PERIODS, AnalyticsPeriod } from '@/lib/analytics/series';
 import { formatKsh } from '@/lib/sms/money';
 import { LinearGradient } from 'expo-linear-gradient';
-
 const VIEWS = ['Income vs Expense', 'Income', 'Expense'] as const;
 
 type ViewType = (typeof VIEWS)[number];
@@ -241,7 +240,6 @@ export default function AnalyticsScreen() {
     //   );
     // }
 
-    const unit = chartWidth / trend.length;
     const barWidth = 50
 
     const incomeValues = isExpenseOnly
@@ -276,7 +274,7 @@ export default function AnalyticsScreen() {
           value: point.expense,
           frontColor: METRIC_COLORS.expense.light,
           gradientColor: METRIC_COLORS.expense.primary,
-          label: point.label,
+          ...(isExpenseOnly ? { label: point.label, labelWidth: 40 } : {}),
           spacing: isIncomeOnly ? 15 : 25,
         });
       }
@@ -346,8 +344,8 @@ export default function AnalyticsScreen() {
           ...expenseData.map((item) => item.value),
       ];
 
-  const { maxValue, stepValue, noOfSections } =
-    getChartScale(visibleValues);
+    const { maxValue, stepValue, noOfSections } =
+      getChartScale(visibleValues);
 
     return (
       <LineChart
@@ -424,6 +422,61 @@ export default function AnalyticsScreen() {
         }}
         formatYLabel={(label: string) => compact(Number(label))}
         isAnimated
+
+        pointerConfig={{
+          activatePointersOnLongPress: false,
+          activatePointersImmediately: false,
+          pointerLabelHeight: 90,
+          pointerLabelWidth: 150,
+
+          pointerLabelComponent: (items: any[]) => {
+            const incomeItem = items[0];
+            const expenseItem = isCombinedView ? items[1] : null;
+
+            return (
+              <View style={styles.pointerCard}>
+                <Text style={styles.pointerLabel}>
+                  {incomeItem?.label}
+                </Text>
+
+                {!isExpenseOnly && (
+                  <View style={styles.pointerRow}>
+                    <View
+                      style={[
+                        styles.pointerDot,
+                        {
+                          backgroundColor:
+                            METRIC_COLORS.income.primary,
+                        },
+                      ]}
+                    />
+                    <Text style={styles.pointerText}>
+                      Income: {formatKsh(incomeItem?.value ?? 0)}
+                    </Text>
+                  </View>
+                )}
+
+                {!isIncomeOnly && (
+                  <View style={styles.pointerRow}>
+                    <View
+                      style={[
+                        styles.pointerDot,
+                        {
+                          backgroundColor:
+                            METRIC_COLORS.expense.primary,
+                        },
+                      ]}
+                    />
+                    <Text style={styles.pointerText}>
+                      Expense:{' '}
+                      {formatKsh(expenseItem?.value ?? 0)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+          },
+        }}
       />
     );
   }
@@ -435,6 +488,210 @@ export default function AnalyticsScreen() {
     : budget.limitCents === null
       ? 'No limit set'
       : formatKsh(budget.spentCents);
+
+  const summaryItems: SummaryItem[] = useMemo(() => {
+    const income = formatKsh(totals?.incomeCents ?? 0);
+    const expense = formatKsh(totals?.expenseCents ?? 0);
+    const netFlowCents =
+      (totals?.incomeCents ?? 0) - (totals?.expenseCents ?? 0);
+
+    const netFlow = formatKsh(Math.abs(netFlowCents));
+    const netFlowColor =
+      netFlowCents >= 0
+        ? METRIC_COLORS.income.primary
+        : METRIC_COLORS.expense.primary;
+
+    const netFlowTrend =
+      netFlowCents > 0 ? 'up' : netFlowCents < 0 ? 'down' : 'neutral';
+
+    const transactionCount = data?.totals?.transactionCount;
+    const highestExpense = data?.totals?.highestExpenseCents;
+    const highestSender = data?.totals?.highestSender;
+    const highestReceiver = data?.totals?.highestReceiver;
+    const smallCosts = data?.totals?.smallCostsCents;
+    const incomeGrowth = data?.totals?.incomeGrowthPercent;
+    const expenseGrowth = data?.totals?.expenseGrowthPercent;
+
+    if (isIncomeOnly) {
+      if (period === 'Weekly') {
+        return [
+          {
+            label: 'Total income received',
+            value: income,
+            color: METRIC_COLORS.income.primary,
+          },
+          {
+            label: 'Total transactions',
+            value:
+              transactionCount === undefined
+                ? '—'
+                : String(transactionCount),
+          },
+        ];
+      }
+
+      return [
+        {
+          label: 'Total income',
+          value: income,
+          color: METRIC_COLORS.income.primary,
+        },
+        {
+          label: 'Total transactions',
+          value:
+            transactionCount === undefined ? '—' : String(transactionCount),
+        },
+        {
+          label: 'Top income source',
+          value: highestSender ?? '—',
+        },
+        {
+          label:
+            period === 'Yearly'
+              ? 'Income growth vs last year'
+              : 'Income growth vs last month',
+          value:
+            incomeGrowth === undefined
+              ? '—'
+              : `${incomeGrowth > 0 ? '+' : ''}${incomeGrowth}%`,
+          color:
+            incomeGrowth === undefined
+              ? undefined
+              : incomeGrowth >= 0
+                ? METRIC_COLORS.income.primary
+                : METRIC_COLORS.expense.primary,
+          trend:
+            incomeGrowth === undefined
+              ? 'neutral'
+              : incomeGrowth >= 0
+                ? 'up'
+                : 'down',
+          trendColor:
+            incomeGrowth === undefined
+              ? undefined
+              : incomeGrowth >= 0
+                ? METRIC_COLORS.income.primary
+                : METRIC_COLORS.expense.primary,
+        },
+      ];
+    }
+
+    if (isExpenseOnly) {
+      if (period === 'Weekly') {
+        return [
+          {
+            label: 'Total expenses',
+            value: expense,
+            color: METRIC_COLORS.expense.primary,
+          },
+          {
+            label: 'Expense transactions',
+            value:
+              transactionCount === undefined
+                ? '—'
+                : String(transactionCount),
+          },
+          {
+            label: 'Small costs under KSh 100',
+            value:
+              smallCosts === undefined ? '—' : formatKsh(smallCosts),
+            color: METRIC_COLORS.expense.primary,
+          },
+        ];
+      }
+
+      return [
+        {
+          label: 'Total expenses',
+          value: expense,
+          color: METRIC_COLORS.expense.primary,
+        },
+        {
+          label: 'Total transactions',
+          value:
+            transactionCount === undefined ? '—' : String(transactionCount),
+        },
+        {
+          label: 'Top spending recipient',
+          value: highestReceiver ?? '—',
+        },
+        {
+          label:
+            period === 'Yearly'
+              ? 'Expense growth vs last year'
+              : 'Expense growth vs last month',
+          value:
+            expenseGrowth === undefined
+              ? '—'
+              : `${expenseGrowth > 0 ? '+' : ''}${expenseGrowth}%`,
+          color:
+            expenseGrowth === undefined
+              ? undefined
+              : expenseGrowth >= 0
+                ? METRIC_COLORS.expense.primary
+                : METRIC_COLORS.income.primary,
+          trend:
+            expenseGrowth === undefined
+              ? 'neutral'
+              : expenseGrowth >= 0
+                ? 'up'
+                : 'down',
+          trendColor:
+            expenseGrowth === undefined
+              ? undefined
+              : expenseGrowth >= 0
+                ? METRIC_COLORS.expense.primary
+                : METRIC_COLORS.income.primary,
+        },
+      ];
+    }
+
+    const items: SummaryItem[] = [
+      {
+        label: 'Total income',
+        value: income,
+        color: METRIC_COLORS.income.primary,
+      },
+      {
+        label: 'Total expenses',
+        value: expense,
+        color: METRIC_COLORS.expense.primary,
+      },
+      {
+        label: 'Total transactions',
+        value:
+          transactionCount === undefined ? '—' : String(transactionCount),
+      },
+      {
+        label: 'Net cash flow',
+        value: netFlow,
+        color: netFlowColor,
+        trend: netFlowTrend,
+        trendColor: netFlowColor,
+      },
+    ];
+
+    if (period === 'Monthly' || period === 'Yearly') {
+      items.push({
+        label: 'Top income source',
+        value: highestSender ?? '—',
+      });
+
+      items.push({
+        label: 'Top spending recipient',
+        value: highestReceiver ?? '—',
+      });
+    }
+
+    return items;
+  }, [
+    data,
+    totals,
+    period,
+    isIncomeOnly,
+    isExpenseOnly,
+  ]);
+        
 
   return (
     <LinearGradient
@@ -610,57 +867,10 @@ export default function AnalyticsScreen() {
             </Animated.View>
           ) : ( */}
           <Animated.View
-            key="grid"
+            key={`${view}-${period}-summary`}
             entering={FadeInDown.duration(250)}
-            style={styles.grid}
           >
-            <View style={styles.gridRow}>
-              <StatCard
-                icon="arrow-up"
-                label="You've Received"
-                value={formatKsh(totals?.incomeCents ?? 0)}
-                colors={['#3FBCE3', '#67CAE8', '#7FDFFC', '#25B8E5']}
-                gradientLocations={[0, 0.43, 0.56, 1]}
-                labelStyle={styles.receivedLabel}
-                valueStyle={styles.receivedValue}
-              />
-
-              <StatCard
-                icon="arrow-down"
-                label="You've Spent"
-                value={formatKsh(totals?.expenseCents ?? 0)}
-                colors={['#F8B64D', '#EBB867', '#F4C476', '#E99E27']}
-                gradientLocations={[0, 0.43, 0.56, 1]}
-                labelStyle={styles.spentLabel}
-                valueStyle={styles.spentValue}
-              />
-            </View>
-
-            <View style={styles.gridRow}>
-              <StatCard
-                icon="arrow-down-circle"
-                label="Budget Spent"
-                value={budgetValue}
-                colors={['#6DFA3A', '#76E04F', '#7CE357', '#56C42E']}
-                gradientLocations={[0, 0.35, 0.56, 1]}
-                progressPercent={budget?.percent ?? undefined}
-                labelStyle={styles.budgetLabel}
-                valueStyle={styles.budgetValue}
-                progressFillStyle={styles.budgetProgressFill}
-              />
-
-              <StatCard
-                icon="disc"
-                label="Goals Achieved"
-                value="3 Out of 4"
-                colors={['#B234D4', '#D662F7', '#D168EE', '#961EB7']}
-                gradientLocations={[0, 0.35, 0.56, 1]}
-                progressPercent={75}
-                labelStyle={styles.goalsLabel}
-                valueStyle={styles.goalsValue}
-                progressFillStyle={styles.goalsProgressFill}
-              />
-            </View>
+            <SummaryGrid items={summaryItems} />
           </Animated.View>
           {/* )} */}
         </ScrollView>
@@ -687,6 +897,41 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: 16,
     paddingBottom: 100,
+  },
+
+  pointerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#E5E3F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  pointerLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  pointerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  pointerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  pointerText: {
+    fontSize: 11,
+    color: '#444444',
   },
   chartCard: {
     borderRadius: 20,
